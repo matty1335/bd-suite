@@ -58,12 +58,12 @@ echo "      Runners downloaded OK"
 echo "      Installing dependencies (Playwright — this may take a few minutes)..."
 cd "$INSTALL_DIR"
 if [ ! -f "package.json" ]; then
-  npm init -y --quiet >/dev/null 2>&1
+  echo '{"name":"bd-suite","version":"1.0.0","type":"module"}' > package.json
 fi
 if [ ! -d "node_modules/playwright" ]; then
   npm install playwright --quiet >/dev/null 2>&1
 fi
-npx playwright install chromium --quiet >/dev/null 2>&1
+npx playwright install chromium >/dev/null 2>&1
 echo "      Playwright ready"
 
 # [5] Write .env config file
