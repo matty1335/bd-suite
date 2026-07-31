@@ -1113,7 +1113,7 @@ async function sendStartupPing() {
   try {
     const metaBoard = await getBoard('meta');
     const metaRows = metaBoard?.data?.datasets?.meta?.rows ?? [];
-    const chatIdRow = metaRows.find(r => r.key === 'etherabot_chat_id');
+    const chatIdRow = metaRows.find(r => r.key === 'telegram_chat_id');
     const chatId = chatIdRow?.value;
     if (chatId) {
       _chatId = chatId;
@@ -1255,7 +1255,7 @@ if (!sessionOk) {
   log('Session expired or not set up. Run: node login.mjs');
   const metaBoard = await getBoard('meta').catch(() => null);
   const metaRows = metaBoard?.data?.datasets?.meta?.rows ?? [];
-  const chatIdRow = metaRows.find(r => r.key === 'etherabot_chat_id');
+  const chatIdRow = metaRows.find(r => r.key === 'telegram_chat_id');
   if (chatIdRow?.value) {
     await tgSend(chatIdRow.value, 'LinkedIn session expired. Run:\n  node login.mjs\nthen:\n  pm2 restart linkedin-runner');
   }
