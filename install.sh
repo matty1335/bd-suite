@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # BD Automation Suite — Local Runner Installer
-# Usage: BRAINS_TOKEN=<token> CC_BOARD_ID=<id> bash install.sh
+# Usage: BRAINS_TOKEN=<token> CC_BOARD_ID=<id> [BOT_TOKEN=<token>] [PROSPECTOR_BOARD_ID=<id>] [CRM_REPO_DIR=<path>] bash install.sh
 set -euo pipefail
 
 BRAINS_TOKEN="${BRAINS_TOKEN:?BRAINS_TOKEN env var is required}"
 CC_BOARD_ID="${CC_BOARD_ID:?CC_BOARD_ID env var is required}"
+BOT_TOKEN="${BOT_TOKEN:-}"
+PROSPECTOR_BOARD_ID="${PROSPECTOR_BOARD_ID:-}"
+CRM_REPO_DIR="${CRM_REPO_DIR:-}"
 
 INSTALL_DIR="$HOME/.bd-suite"
 REPO_RAW="https://raw.githubusercontent.com/matty1335/bd-suite/main"
@@ -71,16 +74,19 @@ echo "[5/6] Writing config to $ENV_FILE"
 cat > "$ENV_FILE" <<EOF
 BRAINS_TOKEN=${BRAINS_TOKEN}
 CC_BOARD_ID=${CC_BOARD_ID}
-BOT_TOKEN=
+BOT_TOKEN=${BOT_TOKEN}
+PROSPECTOR_BOARD_ID=${PROSPECTOR_BOARD_ID}
 EOF
 
-echo ""
-echo "  NOTE: BOT_TOKEN is empty. Telegram approval notifications require a bot token."
-echo "  To add one:"
-echo "    1. Open Telegram -> message @BotFather -> /newbot -> copy the token"
-echo "    2. Edit: $ENV_FILE"
-echo "    3. Run:  pm2 restart linkedin-runner"
-echo ""
+if [ -z "$BOT_TOKEN" ]; then
+  echo ""
+  echo "  NOTE: BOT_TOKEN is empty. Telegram approval notifications require a bot token."
+  echo "  To add one:"
+  echo "    1. Open Telegram -> message @BotFather -> /newbot -> copy the token"
+  echo "    2. Edit: $ENV_FILE"
+  echo "    3. Run:  pm2 restart linkedin-runner"
+  echo ""
+fi
 
 # [6] Start runners with PM2 (idempotent — delete any existing first)
 echo "[6/6] Starting runners..."
@@ -103,6 +109,41 @@ pm2 save --force >/dev/null 2>&1
 echo ""
 echo "Runners started."
 pm2 list --no-color 2>/dev/null | grep -E "linkedin-runner|agent4-bd" || true
+
+# [7] Patch CRM skill files with Prospector board ID (optional)
+OLD_PROSPECTOR_ID="95dcb668-e2d9-4093-9a3e-3200901846fa"
+if [ -n "$PROSPECTOR_BOARD_ID" ] && [ "$PROSPECTOR_BOARD_ID" != "$OLD_PROSPECTOR_ID" ]; then
+  if [ -n "$CRM_REPO_DIR" ]; then
+    echo "[7] Patching CRM skill files..."
+    IMPORT_SKILL="$CRM_REPO_DIR/.claude/skills/crm-import-from-prospector/SKILL.md"
+    QUEUE_SKILL="$CRM_REPO_DIR/.claude/skills/crm-queue-for-research/SKILL.md"
+    patched=0
+    if [ -f "$IMPORT_SKILL" ]; then
+      sed -i.bak "s/$OLD_PROSPECTOR_ID/$PROSPECTOR_BOARD_ID/g" "$IMPORT_SKILL" && rm -f "$IMPORT_SKILL.bak"
+      echo "      Patched: .claude/skills/crm-import-from-prospector/SKILL.md"
+      patched=$((patched + 1))
+    fi
+    if [ -f "$QUEUE_SKILL" ]; then
+      sed -i.bak "s/$OLD_PROSPECTOR_ID/$PROSPECTOR_BOARD_ID/g" "$QUEUE_SKILL" && rm -f "$QUEUE_SKILL.bak"
+      echo "      Patched: .claude/skills/crm-queue-for-research/SKILL.md"
+      patched=$((patched + 1))
+    fi
+    if [ "$patched" -eq 0 ]; then
+      echo "      WARNING: Skill files not found in $CRM_REPO_DIR — check the path."
+    else
+      echo "      Skills ready with your Prospector board ID."
+    fi
+  else
+    echo ""
+    echo "  NOTE: PROSPECTOR_BOARD_ID provided but CRM_REPO_DIR not set."
+    echo "  To patch the CRM skills manually, run from your CRM repo root:"
+    echo "    OLD=$OLD_PROSPECTOR_ID"
+    echo "    NEW=$PROSPECTOR_BOARD_ID"
+    echo "    sed -i \"s/\$OLD/\$NEW/g\" .claude/skills/crm-import-from-prospector/SKILL.md"
+    echo "    sed -i \"s/\$OLD/\$NEW/g\" .claude/skills/crm-queue-for-research/SKILL.md"
+    echo ""
+  fi
+fi
 
 echo ""
 echo "====================================================="
