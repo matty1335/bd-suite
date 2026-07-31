@@ -50,12 +50,16 @@ fi
 mkdir -p "$INSTALL_DIR"
 echo "[3/6] Install directory: $INSTALL_DIR"
 
-# [4] Download runners and login helper
+# [4] Download runners, login helper, and CRM skills
 echo "[4/6] Downloading runners..."
 curl -fsSL "$REPO_RAW/linkedin-runner.mjs" -o "$INSTALL_DIR/linkedin-runner.mjs"
 curl -fsSL "$REPO_RAW/agent4-local.mjs"    -o "$INSTALL_DIR/agent4-local.mjs"
 curl -fsSL "$REPO_RAW/login.mjs"           -o "$INSTALL_DIR/login.mjs"
-echo "      Runners downloaded OK"
+mkdir -p "$INSTALL_DIR/skills/crm-import-from-prospector"
+mkdir -p "$INSTALL_DIR/skills/crm-queue-for-research"
+curl -fsSL "$REPO_RAW/skills/crm-import-from-prospector/SKILL.md" -o "$INSTALL_DIR/skills/crm-import-from-prospector/SKILL.md"
+curl -fsSL "$REPO_RAW/skills/crm-queue-for-research/SKILL.md"     -o "$INSTALL_DIR/skills/crm-queue-for-research/SKILL.md"
+echo "      Runners and skills downloaded OK"
 
 # Install Node dependencies (Playwright must be local to the runner directory)
 echo "      Installing dependencies (Playwright — this may take a few minutes)..."
@@ -110,39 +114,30 @@ echo ""
 echo "Runners started."
 pm2 list --no-color 2>/dev/null | grep -E "linkedin-runner|agent4-bd" || true
 
-# [7] Patch CRM skill files with Prospector board ID (optional)
+# [7] Install CRM skill files into the project directory (optional)
 OLD_PROSPECTOR_ID="95dcb668-e2d9-4093-9a3e-3200901846fa"
-if [ -n "$PROSPECTOR_BOARD_ID" ] && [ "$PROSPECTOR_BOARD_ID" != "$OLD_PROSPECTOR_ID" ]; then
-  if [ -n "$CRM_REPO_DIR" ]; then
-    echo "[7] Patching CRM skill files..."
-    IMPORT_SKILL="$CRM_REPO_DIR/.claude/skills/crm-import-from-prospector/SKILL.md"
-    QUEUE_SKILL="$CRM_REPO_DIR/.claude/skills/crm-queue-for-research/SKILL.md"
-    patched=0
-    if [ -f "$IMPORT_SKILL" ]; then
-      sed -i.bak "s/$OLD_PROSPECTOR_ID/$PROSPECTOR_BOARD_ID/g" "$IMPORT_SKILL" && rm -f "$IMPORT_SKILL.bak"
-      echo "      Patched: .claude/skills/crm-import-from-prospector/SKILL.md"
-      patched=$((patched + 1))
-    fi
-    if [ -f "$QUEUE_SKILL" ]; then
-      sed -i.bak "s/$OLD_PROSPECTOR_ID/$PROSPECTOR_BOARD_ID/g" "$QUEUE_SKILL" && rm -f "$QUEUE_SKILL.bak"
-      echo "      Patched: .claude/skills/crm-queue-for-research/SKILL.md"
-      patched=$((patched + 1))
-    fi
-    if [ "$patched" -eq 0 ]; then
-      echo "      WARNING: Skill files not found in $CRM_REPO_DIR — check the path."
-    else
-      echo "      Skills ready with your Prospector board ID."
-    fi
-  else
-    echo ""
-    echo "  NOTE: PROSPECTOR_BOARD_ID provided but CRM_REPO_DIR not set."
-    echo "  To patch the CRM skills manually, run from your CRM repo root:"
-    echo "    OLD=$OLD_PROSPECTOR_ID"
-    echo "    NEW=$PROSPECTOR_BOARD_ID"
-    echo "    sed -i \"s/\$OLD/\$NEW/g\" .claude/skills/crm-import-from-prospector/SKILL.md"
-    echo "    sed -i \"s/\$OLD/\$NEW/g\" .claude/skills/crm-queue-for-research/SKILL.md"
-    echo ""
+if [ -n "$CRM_REPO_DIR" ]; then
+  echo "[7] Installing CRM skills into $CRM_REPO_DIR..."
+  DEST_IMPORT="$CRM_REPO_DIR/.claude/skills/crm-import-from-prospector"
+  DEST_QUEUE="$CRM_REPO_DIR/.claude/skills/crm-queue-for-research"
+  mkdir -p "$DEST_IMPORT" "$DEST_QUEUE"
+  NEW_ID="${PROSPECTOR_BOARD_ID:-$OLD_PROSPECTOR_ID}"
+  sed "s/$OLD_PROSPECTOR_ID/$NEW_ID/g" "$INSTALL_DIR/skills/crm-import-from-prospector/SKILL.md" > "$DEST_IMPORT/SKILL.md"
+  sed "s/$OLD_PROSPECTOR_ID/$NEW_ID/g" "$INSTALL_DIR/skills/crm-queue-for-research/SKILL.md"     > "$DEST_QUEUE/SKILL.md"
+  echo "      Installed: .claude/skills/crm-import-from-prospector/SKILL.md"
+  echo "      Installed: .claude/skills/crm-queue-for-research/SKILL.md"
+  if [ -n "$PROSPECTOR_BOARD_ID" ] && [ "$PROSPECTOR_BOARD_ID" != "$OLD_PROSPECTOR_ID" ]; then
+    echo "      Patched with your Prospector board ID."
   fi
+else
+  echo ""
+  echo "  NOTE: CRM skills downloaded to $INSTALL_DIR/skills/ but not installed."
+  echo "  To install them, set CRM_REPO_DIR to your project path and re-run, or copy manually:"
+  echo "    mkdir -p /your/project/.claude/skills/crm-import-from-prospector"
+  echo "    mkdir -p /your/project/.claude/skills/crm-queue-for-research"
+  echo "    cp $INSTALL_DIR/skills/crm-import-from-prospector/SKILL.md /your/project/.claude/skills/crm-import-from-prospector/"
+  echo "    cp $INSTALL_DIR/skills/crm-queue-for-research/SKILL.md     /your/project/.claude/skills/crm-queue-for-research/"
+  echo ""
 fi
 
 echo ""
