@@ -80,7 +80,8 @@ async function loadCCConfig() {
     if (setupRow) {
       const setup = JSON.parse(String(setupRow.value ?? '{}'));
       if (setup.prospector_id) BOARD_ID = setup.prospector_id;
-      log(`CC config loaded (cc=${CC_BOARD_ID.slice(0,8)}) prospector=${BOARD_ID.slice(0,8)}`);
+      if (setup.agent2c_id) REPLY_DRAFTER_ID = setup.agent2c_id;
+      log(`CC config loaded (cc=${CC_BOARD_ID.slice(0,8)}) prospector=${BOARD_ID.slice(0,8)} a2c=${REPLY_DRAFTER_ID.slice(0,8)}`);
     } else {
       log(`CC config: cc_setup row not found — using hardcoded defaults`);
     }
@@ -508,7 +509,7 @@ async function tgAnswerCallback(callbackQueryId) {
 
 // ---------- Reply Drafting ----------
 
-const REPLY_DRAFTER_ID = '3966e90e-3ded-48c1-bea6-775597f00843';
+let REPLY_DRAFTER_ID = '3966e90e-3ded-48c1-bea6-775597f00843';
 
 async function draftReply(chatId, lead, channel, replyContent, linkedinSlug = null) {
   const name     = String(lead.name ?? '');
