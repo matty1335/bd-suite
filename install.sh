@@ -7,7 +7,7 @@ BRAINS_TOKEN="${BRAINS_TOKEN:?BRAINS_TOKEN env var is required}"
 CC_BOARD_ID="${CC_BOARD_ID:?CC_BOARD_ID env var is required}"
 
 INSTALL_DIR="$HOME/.bd-suite"
-REPO_RAW="https://raw.githubusercontent.com/ethera-labs/crm/updates"
+REPO_RAW="https://raw.githubusercontent.com/matty1335/bd-suite/main"
 ENV_FILE="$INSTALL_DIR/.linkedin-runner.env"
 
 echo ""
