@@ -23,7 +23,7 @@ Open this guide in Claude Code. Your admin shared this link -- do not redistribu
 | Agent 2C: Reply Drafter | On-demand reply drafts when prospects respond |
 | Agent 3: Meeting Intel | Pre-call brief 30 min before each meeting |
 | Agent 4: CRM Updater | Processes meeting transcripts into CRM records |
-| Local runners | LinkedIn approval (persistent) + meeting intel queue (cron) |
+| Local runners | LinkedIn approval (persistent) + Granola transcript queue (cron) |
 
 ---
 
