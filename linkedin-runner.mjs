@@ -552,6 +552,54 @@ async function draftReply(chatId, lead, channel, replyContent, linkedinSlug = nu
     .catch(e => log(`Reply drafter trigger error: ${e.message?.slice(0, 80)}`));
 }
 
+async function handleEditReply(chatId, qid, editInstruction, queueRows) {
+  const qRow = queueRows.find(r => String(r.id) === qid);
+  if (!qRow) { await tgSend(chatId, `${qid}: Not found.`); return; }
+
+  const lead_id = String(qRow.lead_id ?? '');
+  if (!lead_id) { await tgSend(chatId, `${qid}: No lead_id on row.`); return; }
+
+  await updateRow(String(qRow.row_id), 'outreach_queue', { edit_instruction: editInstruction, status: 'edit_requested' });
+
+  // Re-activate the reply_req meta row with edit_instruction so Agent 2C re-drafts
+  const reqKey = `reply_req_${lead_id}`;
+  const metaBoard = await getBoard('meta');
+  const metaRows  = metaBoard?.data?.datasets?.meta?.rows ?? [];
+  const existing  = metaRows.find(r => String(r.key) === reqKey);
+
+  let prevData = {};
+  if (existing?.value) {
+    try { prevData = JSON.parse(String(existing.value)); } catch {}
+  }
+
+  const reqValue = JSON.stringify({
+    ...prevData,
+    lead_id,
+    name:       prevData.name     || String(qRow.lead_name       ?? ''),
+    company:    prevData.company  || String(qRow.company         ?? ''),
+    position:   String(prevData.position ?? ''),
+    channel:    prevData.channel  || String(qRow.channel         ?? 'linkedin'),
+    snippet:    String(prevData.snippet  ?? ''),
+    slug:       prevData.slug     || String(qRow.lead_linkedin_id ?? ''),
+    lead_row_id: String(prevData.lead_row_id ?? ''),
+    status: 'pending',
+    edit_instruction: editInstruction,
+    created_at: new Date().toISOString(),
+  });
+
+  if (existing?.row_id) {
+    await updateRow(String(existing.row_id), 'meta', { value: reqValue, updated_at: new Date().toISOString() });
+  } else {
+    await brainsTool('append_board_rows', { board_id: BOARD_ID, dataset: 'meta', rows: [{ key: reqKey, value: reqValue }] });
+  }
+
+  brainsTool('run_automation_once', { automation_id: REPLY_DRAFTER_ID, dry_run: false })
+    .then(() => log(`Reply drafter (edit) completed for ${qid}`))
+    .catch(e => log(`Reply drafter (edit) trigger error: ${e.message?.slice(0, 80)}`));
+
+  await tgSend(chatId, `${qid}: Regenerating revised draft...`);
+}
+
 // ---------- Command Handlers ----------
 
 async function handleSend(chatId, qid, queueRows, leadRows) {
@@ -805,8 +853,7 @@ async function poll(state) {
       delete state.pendingEdits[chatId];
       if (!qRow) { await tgSend(chatId, `${pendingEditQid}: Not found.`); }
       else {
-        await updateRow(String(qRow.row_id), 'outreach_queue', { edit_instruction: text, status: 'edit_requested' });
-        await tgSend(chatId, `${pendingEditQid}: Edit saved. Will regenerate in next draft cycle.`);
+        await handleEditReply(chatId, pendingEditQid, text, queueRows);
       }
     } else if (sendAllLiMatch) {
       const qids = sendAllLiMatch[1].trim().toUpperCase().split(/\s+/);
@@ -834,10 +881,7 @@ async function poll(state) {
       await tgSend(chatId, `${qid} discarded.`);
     } else if (editMatch) {
       const qid = editMatch[1].toUpperCase();
-      const qRow = queueRows.find(r => String(r.id) === qid);
-      if (!qRow) { await tgSend(chatId, `${qid}: Not found.`); continue; }
-      await updateRow(String(qRow.row_id), 'outreach_queue', { edit_instruction: editMatch[2].trim(), status: 'edit_requested' });
-      await tgSend(chatId, `${qid}: Edit saved. Will regenerate in next draft cycle.`);
+      await handleEditReply(chatId, qid, editMatch[2].trim(), queueRows);
     }
   }
 
