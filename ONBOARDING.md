@@ -1,4 +1,4 @@
-# BD Automation Suite — Team Onboarding
+# BD Automation Suite — Onboarding
 
 This guide sets up the full BD outreach pipeline for a new user:
 3 boards, 7 AI agents, the Control Centre dashboard, and local runners.
