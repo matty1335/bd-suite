@@ -115,7 +115,6 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 | `snov_client_id` | snov.io OAuth app |
 | `snov_client_secret` | snov.io OAuth app |
 | `firecrawl_api_key` | firecrawl.dev |
-| `github_token` | GitHub token with repo write on your CRM repo (e.g. a fork of matty1335/bd-suite, or link later) |
 
 ### Agent 1.5 -- Research Analyst
 
@@ -128,6 +127,9 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 | Secret | Where to get it |
 |--------|----------------|
 | `gmail_install_id` | Claude calls `list_my_integrations` and finds this automatically from your connected Gmail |
+| `telegram_bot_id` | Numeric bot ID from @BotFather (same bot as Step 5) |
+| `telegram_bot_secret` | Bot token from @BotFather (same token as Step 5) |
+| `newsapi_key` | newsapi.org -- same key from Agent 1 |
 
 ### Agent 2B -- Approval Relay
 
@@ -137,7 +139,10 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 ### Agent 2C -- Reply Drafter
 
-No additional secrets needed beyond `cc_board_id`.
+| Secret | Where to get it |
+|--------|----------------|
+| `telegram_bot_id` | Same bot ID as Agent 2A |
+| `telegram_bot_secret` | Same bot token as Agent 2A |
 
 ### Agent 3 -- Meeting Intel
 
