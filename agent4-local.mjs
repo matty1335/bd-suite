@@ -431,8 +431,7 @@ async function main() {
 
   log(`Agent 4 (local)${TEST_MODE ? ' [TEST MODE]' : ''} — ${sgtDate}`);
 
-  try { await syncCommittedDrafts(); }
-  catch (e) { log(`syncCommittedDrafts error: ${e.message}`); }
+  // syncCommittedDrafts removed — Agent 4 brains automation now writes CRM directly (v13)
 
   let toProcess;
 
