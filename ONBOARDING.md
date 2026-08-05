@@ -1,7 +1,7 @@
 # BD Automation Suite — Onboarding
 
 This guide sets up the full BD outreach pipeline for a new user:
-3 boards, 7 AI agents, the Control Centre dashboard, and local runners.
+3 boards, 8 AI agents, the Control Centre dashboard, and local runners.
 
 Open this guide in Claude Code. Your admin shared this link -- do not redistribute.
 
@@ -23,6 +23,7 @@ Open this guide in Claude Code. Your admin shared this link -- do not redistribu
 | Agent 2C: Reply Drafter | On-demand reply drafts when prospects respond |
 | Agent 3: Meeting Intel | Pre-call brief 30 min before each meeting |
 | Agent 4: CRM Updater | Processes meeting transcripts into CRM records |
+| Board Provisioner | Auto-provisions a prospector board for each new campaign (runs every 5 min) |
 | Local runners | LinkedIn approval (persistent) + transcript extractor -- Granola + Google Meet (cron) |
 
 ---
@@ -163,6 +164,13 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 |--------|----------------|
 | `gmail_install_id` | Claude calls `list_my_integrations` and finds this automatically from your connected Gmail |
 | `brains_user_token` | Your brains API token -- Claude reads this from `whoami` automatically |
+
+### Board Provisioner
+
+| Secret | Where to get it |
+|--------|----------------|
+| `brains_user_token` | Your brains API token -- Claude reads this from `whoami` automatically |
+| `brain_id` | Your brain ID -- Claude reads this from `whoami` automatically |
 
 ---
 
