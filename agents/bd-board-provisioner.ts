@@ -1,6 +1,13 @@
-// bd-board-provisioner v4
-// Checks for newly created campaigns without a prospector board and provisions one.
-// Runs every 5 minutes. Board creation tried via TS API first, then REST fallback.
+// ============================================================
+// BD Board Provisioner
+// Brains recipe: bd-board-provisioner
+// Version: v4 -- dual-path board provisioning (TS API + REST fallback)
+// Cron: */5 * * * * UTC (every 5 minutes)
+// Description: Auto-provisions a bd-prospector-board for each new campaign
+//              that doesn't yet have a prospector_board_id. Patches the board
+//              ID back into agent_config and sends a Telegram confirmation.
+//              Idempotent -- safe to run repeatedly.
+// ============================================================
 
 const VERSION = "v2";
 const CC_BOARD_ID = "{{cc_board_id}}";
