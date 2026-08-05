@@ -88,6 +88,7 @@ install_recipe(slug="bd-agent2b-approval",   brain_id=<brain_id>)
 install_recipe(slug="bd-agent2c-reply",      brain_id=<brain_id>)
 install_recipe(slug="bd-agent3-meeting",     brain_id=<brain_id>)
 install_recipe(slug="bd-agent4-crm",         brain_id=<brain_id>)
+install_recipe(slug="bd-board-provisioner",  brain_id=<brain_id>)
 ```
 
 Automation IDs are captured automatically. After Agent 2C installs, Claude patches `agent2c_id` into the cc_setup row without any extra steps from you.
