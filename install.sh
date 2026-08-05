@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # BD Automation Suite — Local Runner Installer
-# Usage: BRAINS_TOKEN=<token> CC_BOARD_ID=<id> [BOT_TOKEN=<token>] [PROSPECTOR_BOARD_ID=<id>] [CRM_REPO_DIR=<path>] bash install.sh
+# Usage: BRAINS_TOKEN=<token> CC_BOARD_ID=<id> [BOT_TOKEN=<token>] [CRM_REPO_DIR=<path>] bash install.sh
 set -euo pipefail
 
 BRAINS_TOKEN="${BRAINS_TOKEN:?BRAINS_TOKEN env var is required}"
 CC_BOARD_ID="${CC_BOARD_ID:?CC_BOARD_ID env var is required}"
 BOT_TOKEN="${BOT_TOKEN:-}"
-PROSPECTOR_BOARD_ID="${PROSPECTOR_BOARD_ID:-}"
 CRM_REPO_DIR="${CRM_REPO_DIR:-}"
 
 INSTALL_DIR="$HOME/.bd-suite"
@@ -79,7 +78,6 @@ cat > "$ENV_FILE" <<EOF
 BRAINS_TOKEN=${BRAINS_TOKEN}
 CC_BOARD_ID=${CC_BOARD_ID}
 BOT_TOKEN=${BOT_TOKEN}
-PROSPECTOR_BOARD_ID=${PROSPECTOR_BOARD_ID}
 EOF
 
 if [ -z "$BOT_TOKEN" ]; then

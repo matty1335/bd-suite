@@ -59,14 +59,20 @@ Open it now: `https://app.mybrains.ai/d/<CC_BOARD_ID>`
 
 ## Step 2: Wire the CC board
 
-The CC board ships with a blank `cc_setup` row. Claude finds the row ID and fills it in automatically using the board IDs from Step 1.
+The CC board ships with a blank `cc_setup` row. Claude finds the row ID and fills it in automatically using the board IDs from Step 1:
 
-Claude will ask for:
-- Your sender email address (the address cold emails go from)
-- Your test email address (where drafts go while test mode is on -- usually the same)
+| Field | Value |
+|-------|-------|
+| `prospector_id` | Prospector board ID |
+| `crm_id` | CRM board ID |
+| `sender_email` | Your sender email address (cold emails go from this address) |
+| `test_email` | Your test email address (drafts go here while test mode is on -- usually the same as sender) |
+| `owner_id` | Your brains user ID (from `whoami`) |
+| `agent2c_id` | Patched automatically after Step 3 |
+
+Claude will ask for your sender email address, test email address, and reads your `owner_id` from `whoami` automatically.
 
 `test_mode: true` is set by default so nothing goes to real prospects until you flip it in Step 9.
-`agent2c_id` is patched automatically after Step 3.
 
 ---
 
@@ -102,7 +108,7 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 |--------|----------------|
 | `apollo_api_key` | apollo.io |
 | `newsapi_key` | newsapi.org |
-| `tavily_api_key` | tavily.com |
+| `serper_api_key` | serper.dev (free, 2500/month) |
 
 **Optional (add later to expand coverage):**
 
@@ -120,7 +126,7 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 | Secret | Where to get it |
 |--------|----------------|
-| `tavily_api_key` | Same Tavily key from Agent 1 |
+| `serper_api_key` | serper.dev -- same key as Agent 1 |
 
 ### Agent 2A -- Draft Generator
 
@@ -148,11 +154,14 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 | Secret | Where to get it |
 |--------|----------------|
-| `tavily_api_key` | Same Tavily key |
+| `serper_api_key` | serper.dev -- same key |
 
 ### Agent 4 -- CRM Updater
 
-No additional secrets needed beyond `cc_board_id`.
+| Secret | Where to get it |
+|--------|----------------|
+| `gmail_install_id` | Claude calls `list_my_integrations` and finds this automatically from your connected Gmail |
+| `brains_user_token` | Your brains API token -- Claude reads this from `whoami` automatically |
 
 ---
 
@@ -190,7 +199,6 @@ Once you confirm Telegram is set up and paste your `BOT_TOKEN`, Claude runs the 
 ```bash
 BRAINS_TOKEN=<user_token> \
 CC_BOARD_ID=<CC_BOARD_ID> \
-PROSPECTOR_BOARD_ID=<PROSPECTOR_BOARD_ID> \
 BOT_TOKEN=<BOT_TOKEN> \
 bash <(curl -fsSL https://raw.githubusercontent.com/matty1335/bd-suite/main/install.sh)
 ```
@@ -240,6 +248,8 @@ The Campaign Wizard walks through:
 5. **Review** -- confirm all settings and save
 
 The active campaign drives what all 7 agents search for, research, and write.
+
+Each new campaign automatically gets its own dedicated prospector board (leads + outreach queue). All agents and local runners switch to that board when the campaign becomes active -- no manual board IDs needed.
 
 ---
 

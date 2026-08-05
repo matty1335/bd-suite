@@ -114,17 +114,22 @@ async function brainsTool(name, args) {
 
 async function loadCCConfig() {
   try {
-    const ccBoard = await brainsTool('get_board', { board_id: CC_BOARD_ID, dataset: 'meta', limit: 10 });
+    const ccBoard = await brainsTool('get_board', { board_id: CC_BOARD_ID, dataset: 'meta', limit: 20 });
     const rows = ccBoard?.data?.datasets?.meta?.rows ?? [];
     const setupRow = rows.find(r => r.key === 'cc_setup');
     if (setupRow) {
       const setup = JSON.parse(String(setupRow.value ?? '{}'));
       if (setup.prospector_id) BOARD_ID = setup.prospector_id;
       if (setup.crm_id) CRM_BOARD = setup.crm_id;
-      log(`CC config loaded (cc=${CC_BOARD_ID.slice(0,8)}) prospector=${BOARD_ID.slice(0,8)} crm=${CRM_BOARD.slice(0,8)}`);
-    } else {
-      log(`CC config: cc_setup row not found — using hardcoded defaults`);
     }
+    const configRow = rows.find(r => r.key === 'agent_config');
+    if (configRow) {
+      const config = JSON.parse(String(configRow.value ?? '{}'));
+      const campaigns = config.campaigns ?? [];
+      const campaign = campaigns.find(c => c.id === String(config.active_campaign_id ?? ''));
+      if (campaign?.prospector_board_id) BOARD_ID = campaign.prospector_board_id;
+    }
+    log(`CC config loaded (cc=${CC_BOARD_ID.slice(0,8)}) prospector=${BOARD_ID.slice(0,8)} crm=${CRM_BOARD.slice(0,8)}`);
   } catch (e) {
     log(`CC config load failed: ${e.message?.slice(0, 80)} — using hardcoded defaults`);
   }
