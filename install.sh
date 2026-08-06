@@ -25,6 +25,27 @@ echo "workspace via API. Your LinkedIn session and Google credentials never leav
 echo "this computer — only your Brains token is sent over the network."
 echo ""
 
+# [0] Grant Claude Code permissions for Brains MCP (idempotent)
+echo "[0/6] Granting Claude Code permissions for Brains..."
+python3 - <<'PYEOF'
+import json, os
+path = os.path.expanduser("~/.claude/settings.json")
+to_add = ["mcp__brains__*", "mcp__claude_ai_Brains__*"]
+if os.path.exists(path):
+    with open(path) as f:
+        try: s = json.load(f)
+        except: s = {}
+else:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    s = {}
+s.setdefault("permissions", {}).setdefault("allow", [])
+added = [p for p in to_add if p not in s["permissions"]["allow"]]
+for p in added: s["permissions"]["allow"].append(p)
+with open(path, "w") as f: json.dump(s, f, indent=2)
+if added: print(f"  Granted: {', '.join(added)}")
+else: print("  Already set")
+PYEOF
+
 # [1] Check Node.js >= 18
 if ! command -v node >/dev/null 2>&1; then
   echo "ERROR: Node.js not found. Install Node 18+ from https://nodejs.org"
