@@ -94,9 +94,9 @@ Claude will ask for your sender email address, test email address, and reads you
 
 ---
 
-## Step 3: Install the seven automations
+## Step 3: Install the eight automations
 
-Claude installs all 7 automation recipes using the same `brain_id`:
+Claude installs all 8 automation recipes using the same `brain_id`:
 
 ```
 install_recipe(slug="bd-agent1-prospector",  brain_id=<brain_id>)
