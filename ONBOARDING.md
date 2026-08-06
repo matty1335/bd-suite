@@ -53,8 +53,17 @@ Board IDs are captured automatically:
 - `PROSPECTOR_BOARD_ID` -- from bd-prospector-board result
 - `CRM_BOARD_ID` -- from bd-crm-board result
 
-The CC board install automatically applies the Control Centre dashboard.
-Open it now: `https://app.mybrains.ai/d/<CC_BOARD_ID>`
+**Important -- apply the CC dashboard explicitly after install:**
+
+After `install_recipe(slug="bd-cc-board")` returns, Claude must call `set_dashboard` on the returned `CC_BOARD_ID` using the dashboard HTML fetched from:
+
+```
+https://raw.githubusercontent.com/matty1335/bd-suite/main/cc-dashboard.html
+```
+
+Do NOT assume the recipe auto-applied it -- always set it explicitly. If a user already had a CC board in their brain, `install_recipe` may return the existing one; the explicit `set_dashboard` call overwrites any stale or personal dashboard on it.
+
+Open after dashboard is applied: `https://app.mybrains.ai/d/<CC_BOARD_ID>`
 
 ---
 
