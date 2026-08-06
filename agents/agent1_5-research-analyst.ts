@@ -4,7 +4,7 @@
 // v10: Multi-tenant generalization.
 //   - PRODUCT_CONTEXT (was ETHERA_CONTEXT) defaults to "" -- populated from campaign
 //     product_description + value_prop. Research prompts anchor to this automatically.
-//   - PRODUCT_NAME extracted from campaign sender_title (e.g. "CCO at Acme" -> "Acme").
+//   - PRODUCT_NAME set from campaign.name (e.g. "mybrains.ai", "Ethera Institutional").
 //     Used in section headers, Telegram messages, and prompts.
 //   - needsResearch(): removed Ethera-specific quality gate
 //     (sovereign|permissioned chain|besu). Now checks content quality only.
@@ -26,12 +26,12 @@
 let BOARD_ID      = "95dcb668-e2d9-4093-9a3e-3200901846fa";
 const _ccSecret   = "{{cc_board_id}}";
 const CC_BOARD_ID = _ccSecret.startsWith("{{") ? "2907a47b-b179-452e-b9de-042367012bf0" : _ccSecret;
-const VERSION     = "v10";
+const VERSION     = "v11";
 const DEADLINE_MS = 220_000;
 
 // Populated from campaign config at startup
 let PRODUCT_CONTEXT = "";   // product description for research anchoring
-let PRODUCT_NAME = "";      // short name extracted from sender_title (e.g. "Acme")
+let PRODUCT_NAME = "";      // set from campaign.name
 
 let RESEARCH_TOPIC_SIGNALS = [
   "digital asset", "blockchain", "tokenization", "tokenisation", "stablecoin", "CBDC", "RWA",
@@ -180,11 +180,6 @@ async function main() {
         try {
           const setup = JSON.parse(String(setupRow.value ?? "{}")) as Record<string, unknown>;
           if (setup.prospector_id) BOARD_ID = String(setup.prospector_id);
-          // Extract PRODUCT_NAME from sender_title as fallback
-          if (setup.sender_title) {
-            const pn = String(setup.sender_title).split(",")[1]?.trim();
-            if (pn) PRODUCT_NAME = pn;
-          }
         } catch {}
       }
     }
@@ -201,11 +196,7 @@ async function main() {
           PRODUCT_CONTEXT = campaign.product_description as string;
           if ((campaign.value_prop ?? "").length > 0) PRODUCT_CONTEXT += "\n\nValue proposition: " + campaign.value_prop;
         }
-        // Extract PRODUCT_NAME from campaign sender_title (e.g. "CCO, Ethera" -> "Ethera")
-        if (campaign.sender_title) {
-          const pn = String(campaign.sender_title).split(",")[1]?.trim();
-          if (pn) PRODUCT_NAME = pn;
-        }
+        if ((campaign as any).name) PRODUCT_NAME = String((campaign as any).name);
         console.log(`Campaign: ${campaign.id} loaded (${RESEARCH_TOPIC_SIGNALS.length} signals, PRODUCT=${PRODUCT_NAME || '(none)'})`);
       } else {
         console.log("Campaign config: no active campaign -- using generic defaults");
