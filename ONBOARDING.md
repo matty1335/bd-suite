@@ -125,9 +125,11 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 | Secret | Where to get it |
 |--------|----------------|
-| `apollo_api_key` | apollo.io |
+| `apollo_api_key` | apollo.io -- see note below |
 | `newsapi_key` | newsapi.org |
 | `serper_api_key` | serper.dev (free, 2500/month) |
+
+> **Apollo API key:** Go to `app.apollo.io` → Settings → Integrations → API Keys. Apollo creates a **Master API Key** by default -- use that one. Do not create a new key unless you need a separate one for access control.
 
 **Optional (add later to expand coverage):**
 
