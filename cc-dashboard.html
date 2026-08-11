@@ -1002,7 +1002,7 @@ function saveChanges(){
     if(msg)toast(msg,isErr);
   }
   function verify(){
-    _p({type:'board.rows.list',dataset:'meta'},3000).then(function(d){
+    _p({type:'board.rows.list',dataset:'meta'},9000).then(function(d){
       var rows=d&&d.rows?d.rows:[];
       var ac=rows.find(function(r){return r.key==='agent_config';});
       try{
