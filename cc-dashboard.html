@@ -988,16 +988,22 @@ async function suggestProblemOpener(id){
   }
 }
 function saveChanges(){
-  function _doSave(rid){
-    var val={campaigns:state.campaigns,active_campaign_id:state.active_campaign_id};
-    return updateRow('meta',rid,{value:JSON.stringify(val)}).then(function(){toast('Changes saved');});
+  var val={campaigns:state.campaigns,active_campaign_id:state.active_campaign_id};
+  var payload=JSON.stringify(val);
+  function doUpdate(rid){
+    return updateRow('meta',rid,{value:payload}).then(function(){toast('Changes saved');});
   }
-  if(window._acRowId){_doSave(window._acRowId).catch(function(e){toast('Save failed: '+String(e).slice(0,40));});return;}
+  if(window._acRowId){doUpdate(window._acRowId).catch(function(e){toast('Save failed: '+String(e).slice(0,40));});return;}
   listRows('meta').then(function(rows){
     var ac=rows.find(function(r){return r.key==='agent_config';});
-    if(!ac){toast('agent_config row not found');return;}
-    window._acRowId=String(ac.row_id||ac.id||'');
-    return _doSave(window._acRowId);
+    if(ac&&(ac.row_id||ac.id)){
+      window._acRowId=String(ac.row_id||ac.id);
+      return doUpdate(window._acRowId);
+    }
+    return appendRow('meta',{key:'agent_config',value:payload}).then(function(res){
+      if(res&&(res.row_id||res.id))window._acRowId=String(res.row_id||res.id||'');
+      toast('Changes saved');
+    });
   }).catch(function(e){toast('Save failed: '+String(e).slice(0,40));});
 }
 // ---- postBridge / agentAsk (enables verify in board modal) ----
@@ -1018,7 +1024,7 @@ window.addEventListener('message',function(ev){
   var rid=d.reqId;if(!rid||!_pending[rid])return;
   var cb=_pending[rid];delete _pending[rid];try{cb(d);}catch(e){}
 });
-function _p(msg,ms){return new Promise(function(res,rej){postBridge(msg,function(d){if(d&&d.ok===false&&d.error)rej(new Error(d.error));else res(d);},ms||9000);})}
+function _p(msg,ms){return new Promise(function(res,rej){postBridge(msg,function(d){if(!d||d.ok===false)rej(new Error((d&&d.error)||'Request failed'));else res(d);},ms||9000);})}
 function agentAsk(prompt){return _p({type:'dashboard.agent_ask',prompt:String(prompt),scope:'brain'},120000)}
 function listRows(ds){return _p({type:'board.rows.list',dataset:ds},9000).then(function(d){return d&&d.rows?d.rows:[];});}
 function updateRow(ds,rid,patch){return _p({type:'board.row.update',dataset:ds,row_id:rid,patch:patch},9000);}
