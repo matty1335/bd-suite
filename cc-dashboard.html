@@ -46,6 +46,8 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .tb-right{display:flex;align-items:center;gap:8px}
 .btn-save{padding:5px 14px;border:1px solid var(--cdim);color:rgba(0,200,224,.6);background:transparent;font-family:var(--mono);font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:.2s;clip-path:polygon(6px 0%,100% 0%,100% calc(100% - 6px),calc(100% - 6px) 100%,0% 100%,0% 6px)}
 .btn-save:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,200,224,.08)}
+[data-action="saveChanges"].save-err{border-color:rgba(255,46,62,.9)!important;color:#ff2e3e!important;background:rgba(255,46,62,.14)!important;animation:pulse-err 1.4s ease-in-out infinite;}
+@keyframes pulse-err{0%,100%{box-shadow:0 0 0 0 rgba(255,46,62,.5);}50%{box-shadow:0 0 0 5px rgba(255,46,62,.08);}}
 .btn-deploy{padding:5px 14px;border:1px solid var(--green);color:var(--green);background:rgba(0,255,122,.08);font-family:var(--mono);font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;transition:.2s;clip-path:polygon(6px 0%,100% 0%,100% calc(100% - 6px),calc(100% - 6px) 100%,0% 100%,0% 6px)}
 .btn-deploy:hover{background:rgba(0,255,122,.18)}
 .btn-testmode{padding:5px 12px;border:1px solid rgba(255,146,0,.3);color:rgba(255,146,0,.6);background:transparent;font-family:var(--mono);font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:.2s;clip-path:polygon(6px 0%,100% 0%,100% calc(100% - 6px),calc(100% - 6px) 100%,0% 100%,0% 6px)}
@@ -989,23 +991,31 @@ function saveChanges(){
   var val={campaigns:state.campaigns,active_campaign_id:state.active_campaign_id};
   var payload=JSON.stringify(val);
   var btn=document.querySelector('[data-action="saveChanges"]');
-  if(btn){btn.textContent='Saving…';btn.disabled=true;}
-  function restore(msg){if(btn){btn.textContent='Save';btn.disabled=false;}if(msg)toast(msg);}
+  if(btn){btn.textContent='Saving…';btn.disabled=true;btn.classList.remove('save-err');}
+  function restore(msg,isErr){
+    if(btn){
+      btn.disabled=false;
+      if(isErr){btn.textContent='⚠ Save failed — retry';btn.classList.add('save-err');}
+      else{btn.textContent='Save';btn.classList.remove('save-err');}
+    }
+    if(msg)toast(msg,isErr);
+  }
   function verify(){
-    listRows('meta').then(function(rows){
+    _p({type:'board.rows.list',dataset:'meta'},3000).then(function(d){
+      var rows=d&&d.rows?d.rows:[];
       var ac=rows.find(function(r){return r.key==='agent_config';});
       try{
         var v=JSON.parse(String((ac&&ac.value)||'{}'));
         if(Array.isArray(v.campaigns)&&v.campaigns.length===state.campaigns.length)restore('Changes saved');
-        else restore('Save failed: data did not persist -- try again');
+        else restore('Save failed: data did not persist -- try again',true);
       }catch(e){restore('Changes saved');}
-    }).catch(function(){restore('Changes saved');});
+    }).catch(function(){restore('Save failed: could not verify -- try again',true);});
   }
   function doUpdate(rid){
     return updateRow('meta',rid,{value:payload}).then(verify);
   }
   if(window._acRowId){
-    doUpdate(window._acRowId).catch(function(e){restore('Save failed: '+String(e).slice(0,40));});
+    doUpdate(window._acRowId).catch(function(e){restore('Save failed: '+String(e).slice(0,40),true);});
     return;
   }
   listRows('meta').then(function(rows){
@@ -1018,7 +1028,7 @@ function saveChanges(){
       if(res&&(res.row_id||res.id))window._acRowId=String(res.row_id||res.id||'');
       verify();
     });
-  }).catch(function(e){restore('Save failed: '+String(e).slice(0,40));});
+  }).catch(function(e){restore('Save failed: '+String(e).slice(0,40),true);});
 }
 // ---- postBridge / agentAsk (enables verify in board modal) ----
 var _pending={},_reqId=0;
@@ -1504,7 +1514,7 @@ function saveWiz(){
   },1600);
 }
 
-function toast(m){const e=document.getElementById('toast');e.textContent=m;e.style.opacity='1';setTimeout(()=>e.style.opacity='0',3000);}
+function toast(m,isErr){var e=document.getElementById('toast');e.textContent=m;if(isErr){e.style.background='rgba(255,46,62,.15)';e.style.borderColor='rgba(255,46,62,.6)';e.style.color='#ff2e3e';}else{e.style.background='';e.style.borderColor='';e.style.color='';}e.style.opacity='1';clearTimeout(e._t);e._t=setTimeout(function(){e.style.opacity='0';},isErr?8000:3000);}
 
 updateStats();renderCampList();renderAgents();renderMainDetail();
 (function(){try{
