@@ -61,17 +61,9 @@ Board IDs are captured automatically:
 - `PROSPECTOR_BOARD_ID` -- from bd-prospector-board result
 - `CRM_BOARD_ID` -- from bd-crm-board result
 
-**Important -- apply the CC dashboard explicitly after install:**
+The CC dashboard is included in the recipe and applies automatically on install. Do NOT call `set_dashboard` or generate your own HTML -- the recipe already contains the correct dashboard.
 
-After `install_recipe(slug="bd-cc-board")` returns, Claude must apply the CC dashboard. Use WebFetch to retrieve the HTML (do NOT use Bash curl -- it is blocked by the auto-mode classifier):
-
-```
-WebFetch: https://raw.githubusercontent.com/matty1335/bd-suite/main/cc-dashboard.html
-```
-
-Use the fetched content as the HTML for `set_dashboard`. Do NOT generate or substitute your own HTML -- the dashboard must come from this URL. Do NOT assume the recipe auto-applied it -- always set it explicitly. If a user already had a CC board in their brain, `install_recipe` may return the existing one; the explicit `set_dashboard` call overwrites any stale or personal dashboard on it.
-
-Open after dashboard is applied: `https://app.mybrains.ai/d/<CC_BOARD_ID>`
+Open after install: `https://app.mybrains.ai/d/<CC_BOARD_ID>`
 
 ---
 
