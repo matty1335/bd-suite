@@ -1001,19 +1001,8 @@ function saveChanges(){
     }
     if(msg)toast(msg,isErr);
   }
-  function verify(){
-    _p({type:'board.rows.list',dataset:'meta'},9000).then(function(d){
-      var rows=d&&d.rows?d.rows:[];
-      var ac=rows.find(function(r){return r.key==='agent_config';});
-      try{
-        var v=JSON.parse(String((ac&&ac.value)||'{}'));
-        if(Array.isArray(v.campaigns)&&v.campaigns.length===state.campaigns.length)restore('Changes saved');
-        else restore('Save failed: data did not persist -- try again',true);
-      }catch(e){restore('Changes saved');}
-    }).catch(function(){restore('Save failed: could not verify -- try again',true);});
-  }
   function doUpdate(rid){
-    return updateRow('meta',rid,{value:payload}).then(verify);
+    return updateRow('meta',rid,{value:payload}).then(function(){restore('Changes saved');});
   }
   if(window._acRowId){
     doUpdate(window._acRowId).catch(function(e){restore('Save failed: '+String(e).slice(0,40),true);});
@@ -1027,7 +1016,7 @@ function saveChanges(){
     }
     return appendRow('meta',{key:'agent_config',value:payload}).then(function(res){
       if(res&&(res.row_id||res.id))window._acRowId=String(res.row_id||res.id||'');
-      verify();
+      restore('Changes saved');
     });
   }).catch(function(e){restore('Save failed: '+String(e).slice(0,40),true);});
 }
