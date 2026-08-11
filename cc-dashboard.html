@@ -477,7 +477,6 @@ canvas{display:block;border-radius:50%;box-shadow:0 0 18px rgba(0,200,224,.15)}
   <div class="tb-right">
     <button class="btn-chgboard" data-action="openBoardModal">⬡ Change Boards</button>
     <button class="btn-testmode" data-action="openTestModal" id="btn-testmode">Test: OFF</button>
-    <button class="btn-save" data-action="saveChanges">Save</button>
     <button class="btn-deploy" data-action="deployActive">Deploy as Active</button>
   </div>
 </div>
@@ -516,7 +515,6 @@ canvas{display:block;border-radius:50%;box-shadow:0 0 18px rgba(0,200,224,.15)}
       <div class="cmd-grid">
         <button class="cmd-btn g span2" data-action="openWizard">+ New Campaign</button>
         <button class="cmd-btn g" data-action="deployActive">Deploy</button>
-        <button class="cmd-btn" data-action="saveChanges">Save</button>
         <button class="cmd-btn a" id="ps-active-btn">1 Active</button>
         <button class="cmd-btn" id="ps-paused-btn">0 Paused</button>
       </div>
@@ -990,10 +988,26 @@ async function suggestProblemOpener(id){
 function saveChanges(){
   var val={campaigns:state.campaigns,active_campaign_id:state.active_campaign_id};
   var payload=JSON.stringify(val);
-  function doUpdate(rid){
-    return updateRow('meta',rid,{value:payload}).then(function(){toast('Changes saved');});
+  var btn=document.querySelector('[data-action="saveChanges"]');
+  if(btn){btn.textContent='Saving…';btn.disabled=true;}
+  function restore(msg){if(btn){btn.textContent='Save';btn.disabled=false;}if(msg)toast(msg);}
+  function verify(){
+    listRows('meta').then(function(rows){
+      var ac=rows.find(function(r){return r.key==='agent_config';});
+      try{
+        var v=JSON.parse(String((ac&&ac.value)||'{}'));
+        if(Array.isArray(v.campaigns)&&v.campaigns.length===state.campaigns.length)restore('Changes saved');
+        else restore('Save failed: data did not persist -- try again');
+      }catch(e){restore('Changes saved');}
+    }).catch(function(){restore('Changes saved');});
   }
-  if(window._acRowId){doUpdate(window._acRowId).catch(function(e){toast('Save failed: '+String(e).slice(0,40));});return;}
+  function doUpdate(rid){
+    return updateRow('meta',rid,{value:payload}).then(verify);
+  }
+  if(window._acRowId){
+    doUpdate(window._acRowId).catch(function(e){restore('Save failed: '+String(e).slice(0,40));});
+    return;
+  }
   listRows('meta').then(function(rows){
     var ac=rows.find(function(r){return r.key==='agent_config';});
     if(ac&&(ac.row_id||ac.id)){
@@ -1002,9 +1016,9 @@ function saveChanges(){
     }
     return appendRow('meta',{key:'agent_config',value:payload}).then(function(res){
       if(res&&(res.row_id||res.id))window._acRowId=String(res.row_id||res.id||'');
-      toast('Changes saved');
+      verify();
     });
-  }).catch(function(e){toast('Save failed: '+String(e).slice(0,40));});
+  }).catch(function(e){restore('Save failed: '+String(e).slice(0,40));});
 }
 // ---- postBridge / agentAsk (enables verify in board modal) ----
 var _pending={},_reqId=0;
