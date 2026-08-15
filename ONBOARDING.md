@@ -145,7 +145,7 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 | Secret | Where to get it |
 |--------|----------------|
-| `gmail_install_id` | Claude calls `list_my_integrations` and finds this automatically from your connected Gmail |
+| `gmail_install_id` | Set if you like, but no longer required -- agents 2A / 2B / 4 resolve the Gmail install at runtime via `list_my_integrations`. A `{{gmail_install_id}}` secret cannot reach an MCP tool argument, so it was never actually read. |
 | `telegram_bot_id` | Numeric bot ID from @BotFather (same bot as Step 5) |
 | `telegram_bot_secret` | Bot token from @BotFather (same token as Step 5) |
 | `newsapi_key` | newsapi.org -- same key from Agent 1 |
@@ -154,7 +154,7 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 | Secret | Where to get it |
 |--------|----------------|
-| `gmail_install_id` | Same Gmail install ID |
+| `gmail_install_id` | Set if you like, but no longer required -- agents 2A / 2B / 4 resolve the Gmail install at runtime via `list_my_integrations`. A `{{gmail_install_id}}` secret cannot reach an MCP tool argument, so it was never actually read. |
 
 ### Agent 2C -- Reply Drafter
 
@@ -173,7 +173,7 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 | Secret | Where to get it |
 |--------|----------------|
-| `gmail_install_id` | Claude calls `list_my_integrations` and finds this automatically from your connected Gmail |
+| `gmail_install_id` | Set if you like, but no longer required -- agents 2A / 2B / 4 resolve the Gmail install at runtime via `list_my_integrations`. A `{{gmail_install_id}}` secret cannot reach an MCP tool argument, so it was never actually read. |
 | `brains_user_token` | Your brains API token -- Claude reads this from `whoami` automatically |
 
 ### Board Provisioner
