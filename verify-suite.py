@@ -55,7 +55,10 @@ BOARD_RESOLVERS = {
     "agent2b-approval", "agent2c-reply", "agent3-meeting", "agent4-crm",
 }
 
-LOCAL_SCRIPTS = ["agent4-local.mjs", "linkedin-runner.mjs"]
+LOCAL_SCRIPTS = ["agent4-local.mjs", "linkedin-runner.mjs",
+                 "install.sh",
+                 "skills/crm-import-from-prospector/SKILL.md",
+                 "skills/crm-queue-for-research/SKILL.md"]
 
 
 def token():

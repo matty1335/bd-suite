@@ -7,15 +7,28 @@ description: "Import selected leads from the Ethera Prospector board into the CR
 
 Interactively select leads from the Prospector board and import them into the CRM board.
 
-**Prospector board ID:** `95dcb668-e2d9-4093-9a3e-3200901846fa`
-**CRM board ID:** `1de2a9f5-03cd-427e-9bb4-9198ed336f62`
+**Control Centre board ID:** `__CC_BOARD_ID__`
+
+## Step 0 -- Resolve the boards (do this first)
+
+Never hardcode a board id. Board ids differ per user and per campaign, so read
+them from the Control Centre board every time:
+
+1. `mcp__brains__get_board` -> board `__CC_BOARD_ID__`, dataset `meta`, limit 50
+2. From the `cc_setup` row (JSON in `value`): take `prospector_id` and `crm_id`
+3. From the `agent_config` row: find the campaign whose `id` equals
+   `active_campaign_id`. If it has a non-empty `prospector_board_id`, that
+   **overrides** `prospector_id`.
+
+Everything below refers to those as **the Prospector board** and **the CRM board**.
+If either cannot be resolved, stop and tell the user their CC board is not wired up.
 
 ## Workflow
 
 ### Step 1 — Fetch leads from the Prospector board
 
 Call `mcp__brains__get_board` with:
-- `board_id`: `95dcb668-e2d9-4093-9a3e-3200901846fa`
+- `board_id`: the Prospector board id from Step 0
 - `dataset`: `leads`
 - `limit`: 1000
 
@@ -55,7 +68,7 @@ Wait for confirmation before writing anything.
 For each confirmed lead:
 
 #### 4a — Check for duplicates
-Call `mcp__brains__get_board` on the CRM board (`1de2a9f5-03cd-427e-9bb4-9198ed336f62`, dataset `leads`, limit 1000).
+Call `mcp__brains__get_board` on the CRM board (the CRM board, dataset `leads`, limit 1000).
 Match by name (case-insensitive). If a match exists, skip that lead and tell the user.
 
 #### 4b — Resolve or create company
@@ -86,7 +99,7 @@ Call `mcp__brains__append_board_rows` on the CRM board leads dataset:
   "assigned_to": "<logged-in user>",
   "last_contact": "",
   "da_research": "<da_research from prospector if present>",
-  "ethera_use_cases": "<ethera_use_cases from prospector if present>"
+  "product_use_cases": "<product_use_cases (or legacy ethera_use_cases) from prospector if present>"
 }
 ```
 
@@ -109,5 +122,5 @@ Report what was imported:
 - Always check for duplicates before writing — the prospector may surface people already in the CRM.
 - Never import a lead whose `outreach_status` is already "Imported to CRM".
 - If the user says "import all" with no other qualification, still show the list first and ask for confirmation — don't silently bulk-import.
-- Also copy `da_research` and `ethera_use_cases` if present on the Prospector row — no need to re-research after import.
+- Also copy `da_research` and `product_use_cases` if present on the Prospector row — no need to re-research after import.
 - No git operations — CRM data lives in the brains board, not in files.

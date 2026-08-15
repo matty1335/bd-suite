@@ -134,20 +134,19 @@ echo "Runners started."
 pm2 list --no-color 2>/dev/null | grep -E "linkedin-runner|agent4-bd" || true
 
 # [7] Install CRM skill files into the project directory (optional)
-OLD_PROSPECTOR_ID="95dcb668-e2d9-4093-9a3e-3200901846fa"
+# The skills carry no board UUIDs. They take only the Control Centre board id and
+# resolve the prospector / CRM boards from cc_setup + the active campaign at run
+# time, so they stay correct across users and across campaign switches.
 if [ -n "$CRM_REPO_DIR" ]; then
   echo "[7] Installing CRM skills into $CRM_REPO_DIR..."
   DEST_IMPORT="$CRM_REPO_DIR/.claude/skills/crm-import-from-prospector"
   DEST_QUEUE="$CRM_REPO_DIR/.claude/skills/crm-queue-for-research"
   mkdir -p "$DEST_IMPORT" "$DEST_QUEUE"
-  NEW_ID="${PROSPECTOR_BOARD_ID:-$OLD_PROSPECTOR_ID}"
-  sed "s/$OLD_PROSPECTOR_ID/$NEW_ID/g" "$INSTALL_DIR/skills/crm-import-from-prospector/SKILL.md" > "$DEST_IMPORT/SKILL.md"
-  sed "s/$OLD_PROSPECTOR_ID/$NEW_ID/g" "$INSTALL_DIR/skills/crm-queue-for-research/SKILL.md"     > "$DEST_QUEUE/SKILL.md"
+  sed "s/__CC_BOARD_ID__/$CC_BOARD_ID/g" "$INSTALL_DIR/skills/crm-import-from-prospector/SKILL.md" > "$DEST_IMPORT/SKILL.md"
+  sed "s/__CC_BOARD_ID__/$CC_BOARD_ID/g" "$INSTALL_DIR/skills/crm-queue-for-research/SKILL.md"     > "$DEST_QUEUE/SKILL.md"
   echo "      Installed: .claude/skills/crm-import-from-prospector/SKILL.md"
   echo "      Installed: .claude/skills/crm-queue-for-research/SKILL.md"
-  if [ -n "$PROSPECTOR_BOARD_ID" ] && [ "$PROSPECTOR_BOARD_ID" != "$OLD_PROSPECTOR_ID" ]; then
-    echo "      Patched with your Prospector board ID."
-  fi
+  echo "      Wired to your Control Centre board ($CC_BOARD_ID)."
 else
   echo ""
   echo "  NOTE: CRM skills downloaded to $INSTALL_DIR/skills/ but not installed."

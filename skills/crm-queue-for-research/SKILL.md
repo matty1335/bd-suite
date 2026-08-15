@@ -7,16 +7,29 @@ description: "Queue CRM board leads for research by syncing them to the Prospect
 
 Find leads in the CRM board that are not yet on the Prospector board and add them so Agent 1.5 (Research Analyst) can enrich them with da_research and ethera_use_cases.
 
-**CRM board ID:** `1de2a9f5-03cd-427e-9bb4-9198ed336f62`
-**Prospector board ID:** `95dcb668-e2d9-4093-9a3e-3200901846fa`
+**Control Centre board ID:** `__CC_BOARD_ID__`
+
+## Step 0 -- Resolve the boards (do this first)
+
+Never hardcode a board id. Board ids differ per user and per campaign, so read
+them from the Control Centre board every time:
+
+1. `mcp__brains__get_board` -> board `__CC_BOARD_ID__`, dataset `meta`, limit 50
+2. From the `cc_setup` row (JSON in `value`): take `prospector_id` and `crm_id`
+3. From the `agent_config` row: find the campaign whose `id` equals
+   `active_campaign_id`. If it has a non-empty `prospector_board_id`, that
+   **overrides** `prospector_id`.
+
+Everything below refers to those as **the Prospector board** and **the CRM board**.
+If either cannot be resolved, stop and tell the user their CC board is not wired up.
 
 ## Workflow
 
 ### Step 1 — Load both boards in parallel
 
 Simultaneously fetch:
-- CRM board leads: `mcp__brains__get_board` → board `1de2a9f5-03cd-427e-9bb4-9198ed336f62`, dataset `leads`, limit 1000
-- Prospector board leads: `mcp__brains__get_board` → board `95dcb668-e2d9-4093-9a3e-3200901846fa`, dataset `leads`, limit 1000
+- CRM board leads: `mcp__brains__get_board` → the CRM board, dataset `leads`, limit 1000
+- Prospector board leads: `mcp__brains__get_board` → the Prospector board, dataset `leads`, limit 1000
 
 ### Step 2 — Find CRM leads not on the Prospector board
 
