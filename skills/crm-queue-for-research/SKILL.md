@@ -20,8 +20,22 @@ them from the Control Centre board every time:
    `active_campaign_id`. If it has a non-empty `prospector_board_id`, that
    **overrides** `prospector_id`.
 
+4. **Verify both boards are reachable.** Call `mcp__brains__get_board` on each id
+   (metadata only, no dataset). A board id can be present in `cc_setup` and still be
+   dead -- deleted, or in a brain you no longer have access to.
+
 Everything below refers to those as **the Prospector board** and **the CRM board**.
-If either cannot be resolved, stop and tell the user their CC board is not wired up.
+
+Stop and report clearly if either check fails, naming which one and why:
+
+- id missing from `cc_setup` -> "Your Control Centre board has no `crm_id` set.
+  Open the Agent Control Centre and fill it in."
+- id present but `get_board` fails -> "Your `cc_setup.crm_id` points at
+  `<id>`, which returns 'board not found or no access'. That board no longer
+  exists -- update `crm_id` in the Agent Control Centre to your current CRM board."
+
+Never fall back to a default or a remembered id. A wrong board silently writes a
+user's leads into someone else's CRM.
 
 ## Workflow
 
