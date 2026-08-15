@@ -18,24 +18,44 @@ them from the Control Centre board every time:
 2. From the `cc_setup` row (JSON in `value`): take `prospector_id` and `crm_id`
 3. From the `agent_config` row: find the campaign whose `id` equals
    `active_campaign_id`. If it has a non-empty `prospector_board_id`, that
-   **overrides** `prospector_id`.
+   **overrides** `prospector_id`
+4. **Verify both boards are reachable** -- call `mcp__brains__get_board` on each id
+   (metadata only, no dataset). An id can be present in `cc_setup` and still be
+   dead: deleted, or in a brain you no longer have access to
+5. **Announce what you resolved, before touching any data** -- print this every
+   time the skill runs, not just the first run of a session:
 
-4. **Verify both boards are reachable.** Call `mcp__brains__get_board` on each id
-   (metadata only, no dataset). A board id can be present in `cc_setup` and still be
-   dead -- deleted, or in a brain you no longer have access to.
+```
+Active campaign : <campaign name>  (<active_campaign_id>)
+Prospector board: <board name>     (<id>)   [from campaign | from cc_setup]
+CRM board       : <board name>     (<id>)
+```
 
-Everything below refers to those as **the Prospector board** and **the CRM board**.
+Mark the Prospector line `[from campaign]` when the active campaign supplied
+`prospector_board_id`, or `[from cc_setup]` when it fell back to the default.
 
-Stop and report clearly if either check fails, naming which one and why:
+Campaign switches are silent. Someone who started a new campaign yesterday gets a
+different Prospector board today, and without that line they would not notice
+until leads landed somewhere unexpected.
+
+If the user says that is the wrong campaign, **stop**. They change
+`active_campaign_id` in the Agent Control Centre and the skill picks it up on the
+next run, no reinstall. Do not let them override a board id inline -- that
+reintroduces exactly the hardcoding this design removes.
+
+If either check in step 4 fails, stop and say which board and why:
 
 - id missing from `cc_setup` -> "Your Control Centre board has no `crm_id` set.
   Open the Agent Control Centre and fill it in."
-- id present but `get_board` fails -> "Your `cc_setup.crm_id` points at
-  `<id>`, which returns 'board not found or no access'. That board no longer
-  exists -- update `crm_id` in the Agent Control Centre to your current CRM board."
+- id present but `get_board` fails -> "Your `cc_setup.crm_id` points at `<id>`,
+  which returns 'board not found or no access'. That board no longer exists --
+  update `crm_id` in the Agent Control Centre to your current CRM board."
 
-Never fall back to a default or a remembered id. A wrong board silently writes a
-user's leads into someone else's CRM.
+Never fall back to a default or a remembered id. A wrong board silently writes one
+user's leads into another user's CRM.
+
+Everything below refers to the resolved boards as **the Prospector board** and
+**the CRM board**.
 
 ## Workflow
 
