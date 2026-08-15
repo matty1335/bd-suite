@@ -1168,8 +1168,8 @@ function verifyBoard(key){
 function createBoardNew(key){
   var b=BC_BOARDS.find(function(x){return x.key===key;});if(!b)return;
   var prompts={
-    prosp:'Please create the Prospector Board for the Ethera BD automation suite:\n\n1. Create a brains board named "Prospector Board" with description "Leads, outreach queue, campaign config"\n2. Add 5 datasets to it: leads, outreach_queue, meta, transcript_queue, crm_draft\n3. Once created, update the CC dashboard agent config: call update_board_row on board 2907a47b-b179-452e-b9de-042367012bf0, dataset "meta", the row whose key="agent_config", and set prospector_board_id to the new board ID\n4. Share the new board URL when done',
-    crm:'Please create the CRM Board for the Ethera BD automation suite:\n\n1. Create a brains board named "CRM Board" with description "Companies, leads, meetings, activity log"\n2. Add 4 datasets to it: companies, leads, meetings, updates\n3. Once created, update the CC dashboard agent config: call update_board_row on board 2907a47b-b179-452e-b9de-042367012bf0, dataset "meta", the row whose key="agent_config", and set crm_board_id to the new board ID\n4. Share the new board URL when done'
+    prosp:'Please create the Prospector Board for the Ethera BD automation suite:\n\n1. Create a brains board named "Prospector Board" with description "Leads, outreach queue, campaign config"\n2. Add 5 datasets to it: leads, outreach_queue, meta, transcript_queue, crm_draft\n3. Once created, update the CC dashboard agent config: call update_board_row on board '+(window._ccBoardId||'<your Control Centre board id>')+', dataset "meta", the row whose key="agent_config", and set prospector_board_id to the new board ID\n4. Share the new board URL when done',
+    crm:'Please create the CRM Board for the Ethera BD automation suite:\n\n1. Create a brains board named "CRM Board" with description "Companies, leads, meetings, activity log"\n2. Add 4 datasets to it: companies, leads, meetings, updates\n3. Once created, update the CC dashboard agent config: call update_board_row on board '+(window._ccBoardId||'<your Control Centre board id>')+', dataset "meta", the row whose key="agent_config", and set crm_board_id to the new board ID\n4. Share the new board URL when done'
   };
   var prompt=prompts[key];
   if(!prompt){window.open('https://app.mybrains.ai/boards','_blank');return;}
@@ -1509,6 +1509,7 @@ function toast(m,isErr){var e=document.getElementById('toast');e.textContent=m;i
 updateStats();renderCampList();renderAgents();renderMainDetail();
 (function(){try{
   var _bd=JSON.parse(document.getElementById('board-data').textContent||'{}');
+  window._ccBoardId=String(_bd.id||_bd.board_id||'');
   var _ds=(_bd.data&&_bd.data.datasets)||_bd.datasets||{};
   var _rows=(_ds.meta&&(_ds.meta.rows||[]))||[];
   var _cr=_rows.find(function(r){return r.key==='cc_setup';});

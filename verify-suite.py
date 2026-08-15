@@ -58,7 +58,8 @@ BOARD_RESOLVERS = {
 LOCAL_SCRIPTS = ["agent4-local.mjs", "linkedin-runner.mjs",
                  "install.sh",
                  "skills/crm-import-from-prospector/SKILL.md",
-                 "skills/crm-queue-for-research/SKILL.md"]
+                 "skills/crm-queue-for-research/SKILL.md",
+                 "cc-dashboard.html"]
 
 
 def token():
