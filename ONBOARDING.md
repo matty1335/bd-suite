@@ -183,6 +183,16 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 | `brains_user_token` | Your brains API token -- Claude reads this from `whoami` automatically |
 | `brain_id` | Your brain ID -- Claude reads this from `whoami` automatically |
 
+As of v7 the provisioner also resolves your brain at runtime from the CC board
+(`GET /api/v1/boards/{{cc_board_id}}` returns `brainId`), so it no longer depends on
+this secret being present -- but keep it set.
+
+**Do not "restore" `{{brain_id}}` as a fallback in agent code.** `{{secret}}`
+placeholders are substituted only into `http_fetch` url / headers / query -- never
+into plain JavaScript string literals. A literal fallback resolves to the raw string
+`{{brain_id}}`, which is the defect that stopped this agent running at all. If you
+need redundancy here, add a second `http_fetch`, not a literal.
+
 ---
 
 ## Step 5: Set up Telegram
