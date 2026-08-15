@@ -68,7 +68,7 @@ Wait for confirmation before writing anything.
 For each confirmed lead:
 
 #### 4a — Check for duplicates
-Call `mcp__brains__get_board` on the CRM board (the CRM board, dataset `leads`, limit 1000).
+Call `mcp__brains__get_board` on the CRM board (dataset `leads`, limit 1000).
 Match by name (case-insensitive). If a match exists, skip that lead and tell the user.
 
 #### 4b — Resolve or create company
@@ -99,7 +99,8 @@ Call `mcp__brains__append_board_rows` on the CRM board leads dataset:
   "assigned_to": "<logged-in user>",
   "last_contact": "",
   "da_research": "<da_research from prospector if present>",
-  "product_use_cases": "<product_use_cases (or legacy ethera_use_cases) from prospector if present>"
+  "product_use_cases": "<product_use_cases (or legacy ethera_use_cases) from prospector if present>",
+  "ethera_use_cases": "<same value -- write both; whichever column the CRM board declares is the one that stays visible>"
 }
 ```
 
