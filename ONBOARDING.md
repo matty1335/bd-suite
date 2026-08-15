@@ -28,11 +28,31 @@ Open this guide in Claude Code. Your admin shared this link -- do not redistribu
 
 ---
 
-## Before you start
+## Before you start -- required
 
-- A brains account at app.mybrains.ai
-- Gmail connected at `app.mybrains.ai/integrations` (needed for Agents 2A and 2B -- do this now if not done)
-- Telegram installed on your phone
+All three are **required**. Installation does not proceed until each is done.
+
+| # | Requirement | Why it is required |
+|---|-------------|--------------------|
+| 1 | A brains account at `app.mybrains.ai` | Everything installs into your own brain |
+| 2 | **Gmail connected** at `app.mybrains.ai/integrations` | The entire outreach half of the suite runs on it -- Agent 2A creates the email drafts, Agent 2B previews/confirms them and scans Gmail Sent, Agent 4 drafts post-meeting follow-ups. Without it those three agents cannot send or confirm anything. |
+| 3 | Telegram installed on your phone | Every approval and notification arrives there (Step 5) |
+
+**Gmail gate -- Claude must not continue without this.**
+
+Before Step 1, Claude calls `mcp__brains__list_my_integrations` and checks for an
+install whose `slug` starts with `gmail` and whose `state` is `active`.
+
+- If found: note the id and continue.
+- If not found: **stop**. Tell the user to connect Gmail at
+  `app.mybrains.ai/integrations`, wait for them to confirm, then re-check. Do not
+  install the automations first and fix it later -- Agents 2A, 2B and 4 will
+  install cleanly and then fail silently at runtime, which is much harder to debug
+  than a blocked install.
+
+You do **not** need to record the install id anywhere. Agents 2A, 2B and 4 resolve
+it themselves at runtime on every run, so it stays correct even if you later
+reconnect or change the Gmail account.
 
 Claude handles the rest automatically.
 
@@ -47,6 +67,9 @@ Claude calls `mcp__brains__whoami` to get your `brain_id` and `user_token`. **If
 ```
 
 Once the user confirms it ran, Claude retries `whoami` and continues. This is a one-time fix and will not be needed again.
+
+**Gate:** confirm the Gmail check from *Before you start* has passed. If there is no
+active `gmail-*` integration, stop here and resolve that first.
 
 Claude then installs all three board recipes in parallel:
 
@@ -145,7 +168,7 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 | Secret | Where to get it |
 |--------|----------------|
-| `gmail_install_id` | Claude calls `list_my_integrations` and finds this automatically from your connected Gmail |
+| `gmail_install_id` | Set if you like, but no longer required -- agents 2A / 2B / 4 resolve the Gmail install at runtime via `list_my_integrations`. A `{{gmail_install_id}}` secret cannot reach an MCP tool argument, so it was never actually read. |
 | `telegram_bot_id` | Numeric bot ID from @BotFather (same bot as Step 5) |
 | `telegram_bot_secret` | Bot token from @BotFather (same token as Step 5) |
 | `newsapi_key` | newsapi.org -- same key from Agent 1 |
@@ -154,7 +177,7 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 | Secret | Where to get it |
 |--------|----------------|
-| `gmail_install_id` | Same Gmail install ID |
+| `gmail_install_id` | Set if you like, but no longer required -- agents 2A / 2B / 4 resolve the Gmail install at runtime via `list_my_integrations`. A `{{gmail_install_id}}` secret cannot reach an MCP tool argument, so it was never actually read. |
 
 ### Agent 2C -- Reply Drafter
 
@@ -173,7 +196,7 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 
 | Secret | Where to get it |
 |--------|----------------|
-| `gmail_install_id` | Claude calls `list_my_integrations` and finds this automatically from your connected Gmail |
+| `gmail_install_id` | Set if you like, but no longer required -- agents 2A / 2B / 4 resolve the Gmail install at runtime via `list_my_integrations`. A `{{gmail_install_id}}` secret cannot reach an MCP tool argument, so it was never actually read. |
 | `brains_user_token` | Your brains API token -- Claude reads this from `whoami` automatically |
 
 ### Board Provisioner
@@ -182,6 +205,16 @@ Each automation reads API keys from its own secret store. Claude sets them via `
 |--------|----------------|
 | `brains_user_token` | Your brains API token -- Claude reads this from `whoami` automatically |
 | `brain_id` | Your brain ID -- Claude reads this from `whoami` automatically |
+
+As of v7 the provisioner also resolves your brain at runtime from the CC board
+(`GET /api/v1/boards/{{cc_board_id}}` returns `brainId`), so it no longer depends on
+this secret being present -- but keep it set.
+
+**Do not "restore" `{{brain_id}}` as a fallback in agent code.** `{{secret}}`
+placeholders are substituted only into `http_fetch` url / headers / query -- never
+into plain JavaScript string literals. A literal fallback resolves to the raw string
+`{{brain_id}}`, which is the defect that stopped this agent running at all. If you
+need redundancy here, add a second `http_fetch`, not a literal.
 
 ---
 

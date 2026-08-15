@@ -12,8 +12,10 @@ const __dir = dirname(fileURLToPath(import.meta.url));
 const ENV_PATH = join(__dir, '.linkedin-runner.env');
 const STATE_PATH = join(__dir, '.linkedin-runner-state.json');
 const PROFILE_DIR = join(__dir, '.linkedin-browser-profile');
-let BOARD_ID = '95dcb668-e2d9-4093-9a3e-3200901846fa'; // overridden by CC board at startup
-let CC_BOARD_ID = process.env.CC_BOARD_ID || '2907a47b-b179-452e-b9de-042367012bf0';
+// No board default: resolved from the CC board at startup. A hardcoded fallback here
+// would silently point a new user's runner at the author's boards.
+let BOARD_ID = ''; // Prospector board -- resolved from cc_setup / active campaign
+let CC_BOARD_ID = process.env.CC_BOARD_ID || ''; // set by install.sh into .linkedin-runner.env
 const BRAINS_MCP = 'https://mcp.mybrains.ai/mcp';
 const POLL_INTERVAL_MS = 30_000;
 
@@ -33,6 +35,7 @@ function loadEnv() {
   if (!cfg.BRAINS_TOKEN) { console.error(`Missing BRAINS_TOKEN in ${ENV_PATH}`); process.exit(1); }
   if (!cfg.BOT_TOKEN) { console.warn(`Warning: BOT_TOKEN not set in ${ENV_PATH} — Telegram notifications disabled`); }
   if (cfg.CC_BOARD_ID) CC_BOARD_ID = cfg.CC_BOARD_ID;
+  if (!CC_BOARD_ID) { console.error(`Missing CC_BOARD_ID in ${ENV_PATH} (set by install.sh)`); process.exit(1); }
   return cfg;
 }
 
@@ -89,9 +92,11 @@ async function loadCCConfig() {
       const campaign = campaigns.find(c => c.id === String(config.active_campaign_id ?? ''));
       if (campaign?.prospector_board_id) BOARD_ID = campaign.prospector_board_id;
     }
+    if (!BOARD_ID) { log('FATAL: CC board resolved no prospector board id — aborting'); process.exit(1); }
     log(`CC config loaded (cc=${CC_BOARD_ID.slice(0,8)}) prospector=${BOARD_ID.slice(0,8)}`);
   } catch (e) {
-    log(`CC config load failed: ${e.message?.slice(0, 80)} — using hardcoded defaults`);
+    log(`FATAL: CC config load failed: ${e.message?.slice(0, 120)}`);
+    process.exit(1);
   }
 }
 
