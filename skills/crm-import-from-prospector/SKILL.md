@@ -18,7 +18,17 @@ them from the Control Centre board every time:
 2. From the `cc_setup` row (JSON in `value`): take `prospector_id` and `crm_id`
 3. From the `agent_config` row: find the campaign whose `id` equals
    `active_campaign_id`. If it has a non-empty `prospector_board_id`, that
-   **overrides** `prospector_id`
+   **overrides** `prospector_id`.
+
+   If the active campaign exists but has **no** `prospector_board_id`, **stop**:
+
+   > "Your active campaign '<name>' does not have a prospector board yet. The
+   > board provisioner creates one within about 5 minutes of a campaign being
+   > added. Wait a moment and run this again."
+
+   Do **not** fall through to `cc_setup.prospector_id` here. That id belongs to
+   the *previous* campaign, and using it would import this campaign's leads into
+   the last campaign's board -- silently, with no error
 4. **Verify both boards are reachable** -- call `mcp__brains__get_board` on each id
    (metadata only, no dataset). An id can be present in `cc_setup` and still be
    dead: deleted, or in a brain you no longer have access to
