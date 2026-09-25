@@ -241,6 +241,8 @@ The LinkedIn runner sends you inline approval buttons (Approve / Skip / Edit) vi
 
 Paste the token to Claude when prompted -- it becomes `BOT_TOKEN` for the installer.
 
+**Keep the two bots separate.** Do NOT add your outreach bot to `app.mybrains.ai/integrations/telegram`, and do not reuse your BrainChat bot as the outreach bot. If brains and the LinkedIn runner share one bot, brains picks up your messages and button presses first: the runner never receives them, "Connected" never arrives, and approvals silently do nothing. If you already linked it, remove it from the brains Telegram integration.
+
 Confirm when both are done before moving to Step 6.
 
 ---
@@ -291,7 +293,7 @@ Go to the **Setup** tab. Within 5 minutes you should see:
 
 If either shows OFFLINE, run `pm2 list` and `pm2 logs linkedin-runner` in your terminal and share the output with Claude.
 
-Also confirm the bot replied "Connected" when you messaged it. If not, check `pm2 logs linkedin-runner` for `telegram_chat_id captured`.
+Also confirm the bot replied "Connected" when you messaged it. If not, check `pm2 logs linkedin-runner` for `telegram_chat_id captured`. If nothing is captured, first check that the outreach bot is NOT connected in `app.mybrains.ai/integrations/telegram` (see Step 5).
 
 ---
 
