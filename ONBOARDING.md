@@ -275,6 +275,10 @@ node ~/.bd-suite/login.mjs
 
 This opens a browser, navigates to LinkedIn, and saves your session cookies locally. The LinkedIn runner uses these to interact with LinkedIn on your behalf without prompting you to log in again. Complete any MFA steps if LinkedIn asks.
 
+### Connect your outreach bot
+
+Open your personal outreach bot in Telegram and send it any message (for example `hi`). The LinkedIn runner claims that chat on the first message it sees, saves it as `telegram_chat_id` on your prospector board, and replies "Connected". Without this step you will never receive draft previews.
+
 ---
 
 ## Step 7: Verify
@@ -286,6 +290,8 @@ Go to the **Setup** tab. Within 5 minutes you should see:
 - Meeting Intel Runner: **ONLINE**
 
 If either shows OFFLINE, run `pm2 list` and `pm2 logs linkedin-runner` in your terminal and share the output with Claude.
+
+Also confirm the bot replied "Connected" when you messaged it. If not, check `pm2 logs linkedin-runner` for `telegram_chat_id captured`.
 
 ---
 
@@ -325,6 +331,22 @@ Two skills install into your project via `install.sh` (requires `CRM_REPO_DIR`):
 - `/crm:queue-for-research` -- Queues CRM leads for Agent 1.5 to research
 
 Run these in Claude Code from your project directory.
+
+---
+
+## Upgrading to a new version
+
+Recipes are versioned. Your installed agents and boards stay on the version you installed until you upgrade them yourself.
+
+**To upgrade (do this in the web app, not through Claude):**
+1. Open `app.mybrains.ai`, go to **Codex**, and open the recipe (for example "BD Agent 2B: Approval Relay").
+2. The page shows "You have vN. vM available". Click **Upgrade safely**, or **Force upgrade (discard my changes)** if it says you have local changes.
+3. Repeat for every `bd-` recipe that shows an upgrade.
+4. After upgrading, ask Claude to compare each agent's `http_fetch_hosts` with the recipe's. Force upgrade refreshes source, tool grants and triggers, but not allowed hosts; fix any gap with `update_agent`.
+
+**Never upgrade by asking Claude to run `install_recipe` on something already installed.** It marks the agent as the new version without replacing its code, and it hides the upgrade banner. Your agents keep running old code while reporting the new version.
+
+To update the local runners, re-run the installer from Step 6, then `pm2 restart linkedin-runner`.
 
 ---
 

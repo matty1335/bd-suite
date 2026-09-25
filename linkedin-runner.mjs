@@ -787,9 +787,18 @@ async function poll(state) {
   if (updates.length === 0) return;
   log(`${updates.length} update(s)`);
 
-  const queueBoard = await getBoard('outreach_queue');
+  // First message to the bot claims the chat: nothing else in the suite ever writes
+  // telegram_chat_id for a new user, and without it no preview is ever sent.
+  if (!_chatId) {
+    const firstChat = updates.map(u => u.message?.chat?.id ?? u.callback_query?.message?.chat?.id).find(Boolean);
+    if (firstChat) await captureChatId(String(firstChat));
+  }
+
+  // A fresh board may not have these datasets yet (they are created on first write).
+  const safeGet = async (ds) => { try { return await getBoard(ds); } catch (e) { log(`${ds} not readable yet: ${e.message?.slice(0, 60)}`); return null; } };
+  const queueBoard = await safeGet('outreach_queue');
   const queueRows = queueBoard?.data?.datasets?.outreach_queue?.rows ?? [];
-  const leadsBoard = await getBoard('leads');
+  const leadsBoard = await safeGet('leads');
   const leadRows = leadsBoard?.data?.datasets?.leads?.rows ?? [];
 
   for (const update of updates) {
@@ -1166,6 +1175,17 @@ async function proactiveLinkedInReplyCheck() {
 const state = loadState();
 log('LinkedIn Runner started. Ctrl+C to stop.');
 
+async function captureChatId(chatId) {
+  try {
+    await brainsTool('append_board_rows', { board_id: BOARD_ID, dataset: 'meta', rows: [{ key: 'telegram_chat_id', value: chatId, updated_at: new Date().toISOString() }] });
+    _chatId = chatId;
+    log(`telegram_chat_id captured from first bot message: ${chatId}`);
+    await tgSend(chatId, 'Connected. This chat will now receive your outreach previews.');
+  } catch (e) {
+    log(`telegram_chat_id capture failed: ${e.message?.slice(0, 80)}`);
+  }
+}
+
 async function sendStartupPing() {
   try {
     const metaBoard = await getBoard('meta');
@@ -1176,6 +1196,8 @@ async function sendStartupPing() {
       _chatId = chatId;
       await tgSend(chatId, `LinkedIn Runner online (Playwright mode).\nDraft previews have [Send] [Skip] [Edit] buttons.\nOr type: send OQ-XXXX | skip OQ-XXXX | edit OQ-XXXX: [instructions]\nBatch: send all li OQ-XXXX OQ-YYYY...`);
       log(`Startup ping sent to chat ${chatId}`);
+    } else {
+      log('No telegram_chat_id yet -- send any message to your outreach bot to connect it.');
     }
   } catch (e) {
     log(`Startup ping failed: ${e.message}`);
