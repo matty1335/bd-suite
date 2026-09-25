@@ -519,7 +519,7 @@ async function tgAnswerCallback(callbackQueryId) {
 
 // ---------- Reply Drafting ----------
 
-let REPLY_DRAFTER_ID = '3966e90e-3ded-48c1-bea6-775597f00843';
+let REPLY_DRAFTER_ID = ''; // from cc_setup.agent2c_id -- no author fallback
 
 async function draftReply(chatId, lead, channel, replyContent, linkedinSlug = null) {
   const name     = String(lead.name ?? '');
@@ -556,6 +556,7 @@ async function draftReply(chatId, lead, channel, replyContent, linkedinSlug = nu
     return;
   }
 
+  if (!REPLY_DRAFTER_ID) { log(`FATAL: cc_setup.agent2c_id not set -- reply drafter NOT triggered for ${name}`); return; }
   // Fire the reply-drafter automation (non-blocking — don't await result)
   brainsTool('run_automation_once', { automation_id: REPLY_DRAFTER_ID, dry_run: false })
     .then(() => log(`Reply drafter completed for ${name}`))
@@ -603,6 +604,7 @@ async function handleEditReply(chatId, qid, editInstruction, queueRows) {
     await brainsTool('append_board_rows', { board_id: BOARD_ID, dataset: 'meta', rows: [{ key: reqKey, value: reqValue }] });
   }
 
+  if (!REPLY_DRAFTER_ID) { log(`FATAL: cc_setup.agent2c_id not set -- reply drafter NOT triggered (edit) for ${qid}`); return; }
   brainsTool('run_automation_once', { automation_id: REPLY_DRAFTER_ID, dry_run: false })
     .then(() => log(`Reply drafter (edit) completed for ${qid}`))
     .catch(e => log(`Reply drafter (edit) trigger error: ${e.message?.slice(0, 80)}`));
