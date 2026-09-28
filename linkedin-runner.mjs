@@ -238,9 +238,29 @@ async function sendConnectionRequest(slug, note, chatId) {
     //   - "Connect" missing could mean Follow-only profile, not connected
     // So we check the degree badge first, then fall back to button state.
 
-    const is1st = await page.locator('span:has-text("1st"), .dist-value:has-text("1st")').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasPending = await page.locator('button:has-text("Pending")').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasConnect = await page.locator('.pvs-profile-actions button[aria-label*="Invite"], .pvs-profile-actions button:has-text("Connect")').first().isVisible({ timeout: 2000 }).catch(() => false);
+    // Sep 2026 LinkedIn redesign: .pvs-profile-actions is gone and class names are
+    // hashed. The degree badge ("· 1st" / "· 2nd") sits in the first section of <main>
+    // beside the name, and buttons are only reliably identified by aria-label.
+    const degree = await page.evaluate(() => {
+      const t = document.querySelector('main section')?.innerText ?? '';
+      return (t.match(/·\s*(1st|2nd|3rd)/) || [])[1] || '';
+    }).catch(() => '');
+    const is1st = degree === '1st';
+    // Buttons MUST be matched to this profile's own name. Sidebars ("People you may
+    // know", "More profiles for you") carry identical "Invite X to connect" buttons,
+    // and clicking one of those sends an instant invite to a stranger.
+    const profileName = await page.evaluate(() => {
+      const sec = document.querySelector('main section');
+      const h = sec?.querySelector('h1, h2')?.innerText?.trim();
+      return h || (sec?.innerText ?? '').split('\n').map(x => x.trim()).find(Boolean) || '';
+    }).catch(() => '');
+    if (!profileName) return { status: 400, body: 'Could not read the profile name -- not clicking anything' };
+    const inviteLabel = `Invite ${profileName.replace(/"/g, '\\"')} to connect`;
+    // Own-profile Connect is an <a> (sidebar ones are <button>s); match by exact label, any tag.
+    const connectSel = `main section:first-of-type [aria-label="${inviteLabel}"]:not([role="menuitem"] *)`;
+    const hasPending = await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
+    const hasConnect = await page.locator(connectSel).first().isVisible({ timeout: 2000 }).catch(() => false);
+    log(`  ${slug}: degree=${degree || '?'} connect=${hasConnect} pending=${hasPending}`);
 
     if (is1st) {
       log(`  ${slug}: already 1st degree — triggering DM draft`);
@@ -253,11 +273,12 @@ async function sendConnectionRequest(slug, note, chatId) {
     if (!hasConnect) {
       // Check More dropdown before giving up
       let foundInMore = false;
-      const moreBtn = page.locator('.pvs-profile-actions button[aria-label*="More"]').first();
+      // Only the More menu in this profile's own top card (the first <main> section).
+      const moreBtn = page.locator('main section').first().locator('button[aria-label="More"]').first();
       if (await moreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await moreBtn.click();
         await sleep(600);
-        foundInMore = await page.locator('[role="menuitem"]:has-text("Connect")').first().isVisible({ timeout: 2000 }).catch(() => false);
+        foundInMore = await page.locator(`[role="menuitem"]:has([aria-label="${inviteLabel}"])`).first().isVisible({ timeout: 2000 }).catch(() => false);
         if (!foundInMore) await page.keyboard.press('Escape');
       }
       if (!foundInMore) {
@@ -272,12 +293,12 @@ async function sendConnectionRequest(slug, note, chatId) {
     let clicked = false;
 
     if (hasConnect) {
-      const directBtn = page.locator('.pvs-profile-actions button[aria-label*="Invite"], .pvs-profile-actions button:has-text("Connect")').first();
+      const directBtn = page.locator(connectSel).first();
       await directBtn.click();
       clicked = true;
     } else {
       // More dropdown was already opened above — click the Connect item in it
-      const dropConnect = page.locator('[role="menuitem"]:has-text("Connect")').first();
+      const dropConnect = page.locator(`[role="menuitem"]:has([aria-label="${inviteLabel}"])`).first();
       if (await dropConnect.isVisible({ timeout: 3000 }).catch(() => false)) {
         await dropConnect.click();
         clicked = true;
@@ -291,7 +312,7 @@ async function sendConnectionRequest(slug, note, chatId) {
     await sleep(1000 + Math.random() * 500);
 
     // ── Handle the "Add a note" modal ─────────────────────────────────────
-    const addNoteBtn = page.locator('button[aria-label="Add a note"]').first();
+    const addNoteBtn = page.getByRole('button', { name: 'Add a note', exact: true }).first();
     if (await addNoteBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
       await addNoteBtn.click();
       await sleep(500 + Math.random() * 300);
@@ -299,11 +320,22 @@ async function sendConnectionRequest(slug, note, chatId) {
 
     if (note) {
       const noteArea = page.locator('textarea[name="message"], .send-invite__custom-message').first();
-      if (await noteArea.isVisible({ timeout: 4000 }).catch(() => false)) {
-        await noteArea.click();
-        await sleep(300);
-        await page.keyboard.type(note, { delay: 35 + Math.random() * 45 });
-        await sleep(400);
+      if (!(await noteArea.isVisible({ timeout: 4000 }).catch(() => false))) {
+        // No note box (e.g. free-account note quota used up). Never send the invite
+        // without the approved note -- close the modal and report instead.
+        await page.keyboard.press('Escape').catch(() => {});
+        log(`  [browser] note box unavailable for ${slug} -- NOT sent`);
+        return { status: 412, body: 'LinkedIn did not offer "Add a note" (note quota used up?). Not sent, so the approved message is not lost.' };
+      }
+      await noteArea.click();
+      await sleep(300);
+      await page.keyboard.type(note, { delay: 35 + Math.random() * 45 });
+      await sleep(400);
+      const typed = await noteArea.inputValue().catch(() => '');
+      if (typed.trim() !== note.trim()) {
+        await page.keyboard.press('Escape').catch(() => {});
+        log(`  [browser] note mismatch for ${slug} (typed ${typed.length} of ${note.length} chars) -- NOT sent`);
+        return { status: 412, body: `Note did not type in full (${typed.length}/${note.length} chars, likely over LinkedIn's limit). Not sent.` };
       }
     }
 
