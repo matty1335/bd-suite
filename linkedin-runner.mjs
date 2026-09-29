@@ -344,9 +344,23 @@ async function sendConnectionRequest(slug, note, chatId) {
     const sendBtn = page.locator('button[aria-label="Send invitation"], button[aria-label="Send now"], button:has-text("Send now")').first();
     await sendBtn.waitFor({ timeout: 5000 });
     await sendBtn.click();
-    await sleep(2000);
+    await sleep(2500);
 
-    log(`  [browser] connection request sent to ${slug}`);
+    // Never assume the click worked: LinkedIn can silently refuse (e.g. re-inviting
+    // someone recently removed) and only show a toast. Capture any toast, then
+    // reload and require the profile's own top card to show Pending.
+    const toast = await page.locator('[role="alert"], .artdeco-toast-item').first().innerText({ timeout: 1500 }).catch(() => '');
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
+    await sleep(3000);
+    const topCard = await page.evaluate(() => document.querySelector('main section')?.innerText ?? '').catch(() => '');
+    const confirmed = /\bPending\b/.test(topCard) || await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
+    if (!confirmed) {
+      const why = toast.trim().replace(/\s+/g, ' ').slice(0, 120) || 'profile does not show Pending after sending';
+      log(`  [browser] invite NOT confirmed for ${slug}: ${why}`);
+      return { status: 424, body: `LinkedIn did not create the invitation (${why}). Nothing recorded as sent.` };
+    }
+
+    log(`  [browser] connection request confirmed (Pending) for ${slug}`);
     return { status: 200, body: 'ok' };
 
   } catch (e) {
@@ -705,7 +719,11 @@ async function handleSend(chatId, qid, queueRows, leadRows) {
   if (channel !== 'linkedin') { await tgSend(chatId, `${qid}: Channel ${channel} not handled by send.`); return; }
 
   const slug = String(qRow.lead_linkedin_id ?? '');
-  const note = String(qRow.body ?? '');
+  // The lead's LinkedIn Message is the one place the user edits the note (it is what
+  // the dashboard shows). Queue rows created by Agent 2A have no lead message, so
+  // fall back to the queue body for those.
+  const leadMsg = String(leadRow?.linkedin_message ?? '').trim();
+  const note = leadMsg || String(qRow.body ?? '');
   if (!slug) { await tgSend(chatId, `${qid}: No LinkedIn slug.`); return; }
 
   // FU rows: already connected — check for reply first, then send DM
@@ -763,8 +781,10 @@ async function handleSend(chatId, qid, queueRows, leadRows) {
   const r = await sendConnectionRequest(slug, note, chatId);
 
   if (r.status === 200 || r.status === 201) {
-    await updateRow(String(qRow.row_id), 'outreach_queue', { status: 'linkedin_sent', approval_outcome: 'approved' });
-    if (leadRow?.row_id) await updateRow(String(leadRow.row_id), 'leads', { linkedin_status: 'connection_sent' });
+    const sentAt = new Date().toISOString();
+    // Record the exact text that went out, even if the lead's message is edited later.
+    await updateRow(String(qRow.row_id), 'outreach_queue', { status: 'linkedin_sent', approval_outcome: 'approved', body: note });
+    if (leadRow?.row_id) await updateRow(String(leadRow.row_id), 'leads', { linkedin_status: 'connection_sent', linkedin_connection_sent_at: sentAt, linkedin_message_sent: note });
     await tgSend(chatId, `Connection request sent to ${leadName}. ${qid} marked as sent.`);
 
   } else if (r.status === 422) {
@@ -779,6 +799,8 @@ async function handleSend(chatId, qid, queueRows, leadRows) {
     await tgSend(chatId, `${qid}: Session expired. Run: node login.mjs — then pm2 restart linkedin-runner`);
 
   } else {
+    // Leave the queue status as-is so it can be retried, but make the failure visible.
+    await updateRow(String(qRow.row_id), 'outreach_queue', { approval_outcome: `failed: ${String(r.body ?? '').slice(0, 100)}` }).catch(() => {});
     await tgSend(chatId, `${qid}: Failed — ${r.body?.slice(0, 120)}`);
   }
 }
