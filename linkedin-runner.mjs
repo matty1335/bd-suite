@@ -266,6 +266,7 @@ async function sendConnectionRequest(slug, note, chatId) {
     // Own-profile Connect is an <a> (sidebar ones are <button>s); match by exact label, any tag.
     const connectSel = inviteLabels.map(l => `main section:first-of-type [aria-label="${l}"]:not([role="menuitem"] *)`).join(', ');
     const menuConnectSel = inviteLabels.map(l => `[role="menuitem"]:has([aria-label="${l}"])`).join(', ');
+    const pendingMenuSel = nameVariants.map(n => `[role="menuitem"]:has([aria-label="Pending, click to withdraw invitation sent to ${esc(n)}"])`).join(', ');
     const hasPending = await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
     const hasConnect = await page.locator(connectSel).first().isVisible({ timeout: 2000 }).catch(() => false);
     log(`  ${slug}: degree=${degree || '?'} connect=${hasConnect} pending=${hasPending}`);
@@ -287,7 +288,16 @@ async function sendConnectionRequest(slug, note, chatId) {
         await moreBtn.click();
         await sleep(600);
         foundInMore = await page.locator(menuConnectSel).first().isVisible({ timeout: 2000 }).catch(() => false);
-        if (!foundInMore) await page.keyboard.press('Escape');
+        if (!foundInMore) {
+          // Profiles whose Connect lives in More also show an existing invite there:
+          // "Pending, click to withdraw invitation sent to <name>".
+          const pendingInMore = await page.locator(pendingMenuSel).first().isVisible({ timeout: 1500 }).catch(() => false);
+          await page.keyboard.press('Escape');
+          if (pendingInMore) {
+            log(`  ${slug}: connection request already pending (More menu)`);
+            return { status: 409, body: 'Pending' };
+          }
+        }
       }
       if (!foundInMore) {
         log(`  ${slug}: no Connect button — Follow-only or restricted profile`);
@@ -361,7 +371,17 @@ async function sendConnectionRequest(slug, note, chatId) {
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
     await sleep(3000);
     const topCard = await page.evaluate(() => document.querySelector('main section')?.innerText ?? '').catch(() => '');
-    const confirmed = /\bPending\b/.test(topCard) || await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
+    let confirmed = /^Invitation sent\b/i.test(toast.trim()) || /\bPending\b/.test(topCard)
+      || await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
+    if (!confirmed) {
+      // For profiles whose Connect lives in More, Pending only shows inside that menu.
+      const mb = page.locator('main section').first().locator('button[aria-label="More"]').first();
+      if (await mb.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await mb.click(); await sleep(700);
+        confirmed = await page.locator(pendingMenuSel).first().isVisible({ timeout: 2000 }).catch(() => false);
+        await page.keyboard.press('Escape').catch(() => {});
+      }
+    }
     if (!confirmed) {
       const why = toast.trim().replace(/\s+/g, ' ').slice(0, 120) || 'profile does not show Pending after sending';
       log(`  [browser] invite NOT confirmed for ${slug}: ${why}`);
