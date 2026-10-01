@@ -213,6 +213,30 @@ function toSlug(urlOrSlug) {
 
 // ---------- LinkedIn — Connection Request ----------
 
+// Find the profile's own identity card regardless of page section order: anchor on the
+// name heading, then walk up to the nearest ancestor that also holds a visible "More"
+// button. Marks it with data-bd-topcard and returns { name, degree } (or null).
+async function markTopCard(page) {
+  return page.evaluate(() => {
+    document.querySelectorAll('[data-bd-topcard]').forEach(e => e.removeAttribute('data-bd-topcard'));
+    const main = document.querySelector('main');
+    if (!main) return null;
+    const isDeg = (el) => /·\s*(1st|2nd|3rd)\b/.test(el?.innerText || '');
+    let h = main.querySelector('h1');
+    if (!h || !h.innerText.trim()) {
+      h = [...main.querySelectorAll('h2')].find(x => x.innerText.trim() && isDeg(x.closest('section') || x.parentElement)) || null;
+    }
+    if (!h) return null;
+    const visibleMore = (n) => [...n.querySelectorAll('button[aria-label="More"]')].some(b => b.offsetParent !== null);
+    let n = h.parentElement;
+    while (n && n !== main && !visibleMore(n)) n = n.parentElement;
+    if (!n || n === main) n = h.closest('section') || h.parentElement;
+    n.setAttribute('data-bd-topcard', '1');
+    const t = n.innerText || '';
+    return { name: h.innerText.trim(), degree: (t.match(/·\s*(1st|2nd|3rd)/) || [])[1] || '' };
+  }).catch(() => null);
+}
+
 async function sendConnectionRequest(slug, note, chatId) {
   slug = toSlug(slug);
   const page = await newPage();
@@ -241,19 +265,18 @@ async function sendConnectionRequest(slug, note, chatId) {
     // Sep 2026 LinkedIn redesign: .pvs-profile-actions is gone and class names are
     // hashed. The degree badge ("· 1st" / "· 2nd") sits in the first section of <main>
     // beside the name, and buttons are only reliably identified by aria-label.
-    const degree = await page.evaluate(() => {
-      const t = document.querySelector('main section')?.innerText ?? '';
-      return (t.match(/·\s*(1st|2nd|3rd)/) || [])[1] || '';
-    }).catch(() => '');
+    // Oct 2026: on some accounts the identity card is NOT the first <main> section
+    // (an activity rail can come first), so anchor on the profile's name heading and
+    // mark the nearest ancestor that holds the profile's own More button as the top
+    // card. Every selector below is scoped to [data-bd-topcard].
+    const card = await markTopCard(page);
+    if (!card) return { status: 400, body: 'Could not find the profile header -- not clicking anything' };
+    const degree = card.degree;
     const is1st = degree === '1st';
     // Buttons MUST be matched to this profile's own name. Sidebars ("People you may
     // know", "More profiles for you") carry identical "Invite X to connect" buttons,
     // and clicking one of those sends an instant invite to a stranger.
-    const profileName = await page.evaluate(() => {
-      const sec = document.querySelector('main section');
-      const h = sec?.querySelector('h1, h2')?.innerText?.trim();
-      return h || (sec?.innerText ?? '').split('\n').map(x => x.trim()).find(Boolean) || '';
-    }).catch(() => '');
+    const profileName = card.name;
     if (!profileName) return { status: 400, body: 'Could not read the profile name -- not clicking anything' };
     // LinkedIn's Invite label can omit parts the header shows, e.g. header
     // "Olivia (Huppman) DePass" vs label "Invite Olivia DePass to connect". Accept the
@@ -264,7 +287,7 @@ async function sendConnectionRequest(slug, note, chatId) {
     const inviteLabels = nameVariants.map(n => `Invite ${esc(n)} to connect`);
     const inviteLabel = inviteLabels[0];
     // Own-profile Connect is an <a> (sidebar ones are <button>s); match by exact label, any tag.
-    const connectSel = inviteLabels.map(l => `main section:first-of-type [aria-label="${l}"]:not([role="menuitem"] *)`).join(', ');
+    const connectSel = inviteLabels.map(l => `[data-bd-topcard] [aria-label="${l}"]:not([role="menuitem"] *)`).join(', ');
     const menuConnectSel = inviteLabels.map(l => `[role="menuitem"]:has([aria-label="${l}"])`).join(', ');
     const pendingMenuSel = nameVariants.map(n => `[role="menuitem"]:has([aria-label="Pending, click to withdraw invitation sent to ${esc(n)}"])`).join(', ');
     const hasPending = await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
@@ -283,7 +306,7 @@ async function sendConnectionRequest(slug, note, chatId) {
       // Check More dropdown before giving up
       let foundInMore = false;
       // Only the More menu in this profile's own top card (the first <main> section).
-      const moreBtn = page.locator('main section').first().locator('button[aria-label="More"]').first();
+      const moreBtn = page.locator('[data-bd-topcard] button[aria-label="More"]:visible').first();
       if (await moreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await moreBtn.click();
         await sleep(600);
@@ -370,12 +393,13 @@ async function sendConnectionRequest(slug, note, chatId) {
     const toast = await page.locator('[role="alert"], .artdeco-toast-item').first().innerText({ timeout: 1500 }).catch(() => '');
     await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => {});
     await sleep(3000);
-    const topCard = await page.evaluate(() => document.querySelector('main section')?.innerText ?? '').catch(() => '');
+    await markTopCard(page).catch(() => null);
+    const topCard = await page.evaluate(() => document.querySelector('[data-bd-topcard]')?.innerText ?? '').catch(() => '');
     let confirmed = /^Invitation sent\b/i.test(toast.trim()) || /\bPending\b/.test(topCard)
       || await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
     if (!confirmed) {
       // For profiles whose Connect lives in More, Pending only shows inside that menu.
-      const mb = page.locator('main section').first().locator('button[aria-label="More"]').first();
+      const mb = page.locator('[data-bd-topcard] button[aria-label="More"]:visible').first();
       if (await mb.isVisible({ timeout: 2000 }).catch(() => false)) {
         await mb.click(); await sleep(700);
         confirmed = await page.locator(pendingMenuSel).first().isVisible({ timeout: 2000 }).catch(() => false);
