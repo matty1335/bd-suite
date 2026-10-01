@@ -227,11 +227,25 @@ async function markTopCard(page) {
       h = [...main.querySelectorAll('h2')].find(x => x.innerText.trim() && isDeg(x.closest('section') || x.parentElement)) || null;
     }
     if (!h) return null;
-    const visibleMore = (n) => [...n.querySelectorAll('button[aria-label="More"]')].some(b => b.offsetParent !== null);
+    // The profile's own More button: some accounts label it aria-label="More", others
+    // render it with only the text "More" next to a hidden aria-labelled duplicate.
+    // Accept either, but only if it is actually visible.
+    const isVisible = (b) => { const r = b.getBoundingClientRect(); const cs = getComputedStyle(b); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
+    // Prefer the visible aria-labelled More; fall back to a visible text-only "More"
+    // only when no labelled one is visible (other "More" texts, e.g. "...see more",
+    // exist on some cards).
+    const moreButtons = (n) => {
+      const all = [...n.querySelectorAll('button')].filter(isVisible);
+      const labelled = all.filter(b => b.getAttribute('aria-label') === 'More');
+      return labelled.length ? labelled : all.filter(b => !b.getAttribute('aria-label') && (b.innerText || '').trim() === 'More');
+    };
     let n = h.parentElement;
-    while (n && n !== main && !visibleMore(n)) n = n.parentElement;
+    while (n && n !== main && moreButtons(n).length === 0) n = n.parentElement;
     if (!n || n === main) n = h.closest('section') || h.parentElement;
     n.setAttribute('data-bd-topcard', '1');
+    document.querySelectorAll('[data-bd-more]').forEach(e => e.removeAttribute('data-bd-more'));
+    const mb = moreButtons(n)[0];
+    if (mb) mb.setAttribute('data-bd-more', '1');
     const t = n.innerText || '';
     return { name: h.innerText.trim(), degree: (t.match(/·\s*(1st|2nd|3rd)/) || [])[1] || '' };
   }).catch(() => null);
@@ -288,8 +302,12 @@ async function sendConnectionRequest(slug, note, chatId) {
     const inviteLabel = inviteLabels[0];
     // Own-profile Connect is an <a> (sidebar ones are <button>s); match by exact label, any tag.
     const connectSel = inviteLabels.map(l => `[data-bd-topcard] [aria-label="${l}"]:not([role="menuitem"] *)`).join(', ');
-    const menuConnectSel = inviteLabels.map(l => `[role="menuitem"]:has([aria-label="${l}"])`).join(', ');
-    const pendingMenuSel = nameVariants.map(n => `[role="menuitem"]:has([aria-label="Pending, click to withdraw invitation sent to ${esc(n)}"])`).join(', ');
+    const menuConnectSel = inviteLabels.map(l => `[role="menuitem"]:has([aria-label="${l}"])`).join(', ')
+      + ', [role="menuitem"]:text-is("Connect")';
+    // Only menu items are present while the profile's own More menu is open, so an
+    // item reading exactly "Connect" / "Pending" belongs to this profile.
+    const pendingMenuSel = nameVariants.map(n => `[role="menuitem"]:has([aria-label="Pending, click to withdraw invitation sent to ${esc(n)}"])`).join(', ')
+      + ', [role="menuitem"]:text-is("Pending")';
     const hasPending = await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
     const hasConnect = await page.locator(connectSel).first().isVisible({ timeout: 2000 }).catch(() => false);
     log(`  ${slug}: degree=${degree || '?'} connect=${hasConnect} pending=${hasPending}`);
@@ -306,7 +324,7 @@ async function sendConnectionRequest(slug, note, chatId) {
       // Check More dropdown before giving up
       let foundInMore = false;
       // Only the More menu in this profile's own top card (the first <main> section).
-      const moreBtn = page.locator('[data-bd-topcard] button[aria-label="More"]:visible').first();
+      const moreBtn = page.locator('[data-bd-more]').first();
       if (await moreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await moreBtn.click();
         await sleep(600);
@@ -399,7 +417,7 @@ async function sendConnectionRequest(slug, note, chatId) {
       || await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
     if (!confirmed) {
       // For profiles whose Connect lives in More, Pending only shows inside that menu.
-      const mb = page.locator('[data-bd-topcard] button[aria-label="More"]:visible').first();
+      const mb = page.locator('[data-bd-more]').first();
       if (await mb.isVisible({ timeout: 2000 }).catch(() => false)) {
         await mb.click(); await sleep(700);
         confirmed = await page.locator(pendingMenuSel).first().isVisible({ timeout: 2000 }).catch(() => false);
