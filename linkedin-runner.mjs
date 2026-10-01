@@ -255,9 +255,17 @@ async function sendConnectionRequest(slug, note, chatId) {
       return h || (sec?.innerText ?? '').split('\n').map(x => x.trim()).find(Boolean) || '';
     }).catch(() => '');
     if (!profileName) return { status: 400, body: 'Could not read the profile name -- not clicking anything' };
-    const inviteLabel = `Invite ${profileName.replace(/"/g, '\\"')} to connect`;
+    // LinkedIn's Invite label can omit parts the header shows, e.g. header
+    // "Olivia (Huppman) DePass" vs label "Invite Olivia DePass to connect". Accept the
+    // full name and the name with (bracketed) parts removed -- still an exact match
+    // on this person's own name, never a prefix match (sidebar cards share the page).
+    const esc = (x) => x.replace(/"/g, '\\"');
+    const nameVariants = [...new Set([profileName, profileName.replace(/\s*\([^)]*\)\s*/g, ' ').replace(/\s+/g, ' ').trim()].filter(Boolean))];
+    const inviteLabels = nameVariants.map(n => `Invite ${esc(n)} to connect`);
+    const inviteLabel = inviteLabels[0];
     // Own-profile Connect is an <a> (sidebar ones are <button>s); match by exact label, any tag.
-    const connectSel = `main section:first-of-type [aria-label="${inviteLabel}"]:not([role="menuitem"] *)`;
+    const connectSel = inviteLabels.map(l => `main section:first-of-type [aria-label="${l}"]:not([role="menuitem"] *)`).join(', ');
+    const menuConnectSel = inviteLabels.map(l => `[role="menuitem"]:has([aria-label="${l}"])`).join(', ');
     const hasPending = await page.locator(`main button[aria-label^="Pending"][aria-label*="${profileName.replace(/"/g, '\\"')}"]`).first().isVisible({ timeout: 2000 }).catch(() => false);
     const hasConnect = await page.locator(connectSel).first().isVisible({ timeout: 2000 }).catch(() => false);
     log(`  ${slug}: degree=${degree || '?'} connect=${hasConnect} pending=${hasPending}`);
@@ -278,7 +286,7 @@ async function sendConnectionRequest(slug, note, chatId) {
       if (await moreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await moreBtn.click();
         await sleep(600);
-        foundInMore = await page.locator(`[role="menuitem"]:has([aria-label="${inviteLabel}"])`).first().isVisible({ timeout: 2000 }).catch(() => false);
+        foundInMore = await page.locator(menuConnectSel).first().isVisible({ timeout: 2000 }).catch(() => false);
         if (!foundInMore) await page.keyboard.press('Escape');
       }
       if (!foundInMore) {
@@ -298,7 +306,7 @@ async function sendConnectionRequest(slug, note, chatId) {
       clicked = true;
     } else {
       // More dropdown was already opened above — click the Connect item in it
-      const dropConnect = page.locator(`[role="menuitem"]:has([aria-label="${inviteLabel}"])`).first();
+      const dropConnect = page.locator(menuConnectSel).first();
       if (await dropConnect.isVisible({ timeout: 3000 }).catch(() => false)) {
         await dropConnect.click();
         clicked = true;
