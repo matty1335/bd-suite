@@ -226,7 +226,19 @@ async function markTopCard(page) {
     if (!h || !h.innerText.trim()) {
       h = [...main.querySelectorAll('h2')].find(x => x.innerText.trim() && isDeg(x.closest('section') || x.parentElement)) || null;
     }
-    if (!h) return null;
+    if (!h) {
+      // Original method (kept as a fallback, not replaced): the identity card is the
+      // first <main> section, the name is its first heading or first line of text.
+      const sec = main.querySelector('section');
+      const txt = (sec?.innerText || '').trim();
+      if (!sec || !txt) return null;
+      sec.setAttribute('data-bd-topcard', '1');
+      document.querySelectorAll('[data-bd-more]').forEach(e => e.removeAttribute('data-bd-more'));
+      const mb0 = [...sec.querySelectorAll('button[aria-label="More"]')].find(b => b.offsetParent !== null);
+      if (mb0) mb0.setAttribute('data-bd-more', '1');
+      const nm = (sec.querySelector('h1, h2')?.innerText || '').trim() || txt.split('\n').map(x => x.trim()).find(Boolean) || '';
+      return nm ? { name: nm, degree: (txt.match(/·\s*(1st|2nd|3rd)/) || [])[1] || '' } : null;
+    }
     // The profile's own More button: some accounts label it aria-label="More", others
     // render it with only the text "More" next to a hidden aria-labelled duplicate.
     // Accept either, but only if it is actually visible.
