@@ -384,14 +384,15 @@ async function sendConnectionRequest(slug, note, chatId) {
 
     // ── Handle the "Add a note" modal ─────────────────────────────────────
     const addNoteBtn = page.getByRole('button', { name: 'Add a note', exact: true }).first();
-    if (await addNoteBtn.isVisible({ timeout: 4000 }).catch(() => false)) {
+    // isVisible() does not wait; waitFor() does. The dialog can take a few seconds.
+    if (await addNoteBtn.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) {
       await addNoteBtn.click();
       await sleep(500 + Math.random() * 300);
     }
 
     if (note) {
       const noteArea = page.locator('textarea[name="message"], .send-invite__custom-message').first();
-      if (!(await noteArea.isVisible({ timeout: 4000 }).catch(() => false))) {
+      if (!(await noteArea.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false))) {
         // No note box (e.g. free-account note quota used up). Never send the invite
         // without the approved note -- close the modal and report instead.
         await page.keyboard.press('Escape').catch(() => {});
